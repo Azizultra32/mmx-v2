@@ -1,96 +1,66 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
-export interface ComplianceData {
-  targetName: string;
-  targetPath: string;
-  enginePath: string;
-  ok: boolean;
-  violations: string[];
-  dirtyPaths: string[];
-}
-
-export interface RunData {
-  runId: string;
-  state: string;
+export interface RunState {
+  run_id: string;
+  target_path: string;
   level: number;
-  totalCostUsd: number;
-  createdAt?: string;
-  updatedAt?: string;
-  error?: string;
+  state: string;
+  active_stage: string | null;
+  total_cost_usd: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  error: string | null;
 }
 
-export interface RunsData {
-  runs: RunData[];
-  targetName: string;
-}
-
-interface Ctx {
-  compliance: ComplianceData | null;
-  runs: RunData[];
-  targetName: string;
+interface DashboardContextValue {
+  runs: RunState[];
   selectedRunId: string | null;
   setSelectedRunId: (id: string | null) => void;
-  launching: boolean;
-  lastLaunchError: string | null;
-  launchRun: () => Promise<void>;
-  refresh: () => void;
+  selectedRun: RunState | null;
 }
 
-const DashboardCtx = createContext<Ctx>({
-  compliance: null, runs: [], targetName: '', selectedRunId: null,
-  setSelectedRunId: () => {}, launching: false, lastLaunchError: null,
-  launchRun: async () => {}, refresh: () => {},
+const DashboardContext = createContext<DashboardContextValue>({
+  runs: [],
+  selectedRunId: null,
+  setSelectedRunId: () => {},
+  selectedRun: null,
 });
 
-export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [compliance, setCompliance] = useState<ComplianceData | null>(null);
-  const [runs, setRuns] = useState<RunData[]>([]);
-  const [targetName, setTargetName] = useState('');
+export function DashboardProvider({ children }: { children: React.ReactNode }) {
+  const [runs, setRuns] = useState<RunState[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [launching, setLaunching] = useState(false);
-  const [lastLaunchError, setLastLaunchError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const [c, r] = await Promise.all([
-        fetch('/api/compliance').then(x => x.json()),
-        fetch('/api/runs').then(x => x.json()),
-      ]);
-      setCompliance(c as ComplianceData);
-      setRuns((r as RunsData).runs ?? []);
-      setTargetName((c as ComplianceData).targetName ?? (r as RunsData).targetName ?? '');
-    } catch {}
-  }, []);
 
   useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, 5000);
-    return () => clearInterval(id);
-  }, [refresh]);
-
-  const launchRun = useCallback(async () => {
-    setLaunching(true);
-    setLastLaunchError(null);
-    try {
-      const res = await fetch('/api/run', { method: 'POST' });
-      const data = await res.json();
-      if (!data.ok) {
-        setLastLaunchError(data.violations?.join(', ') ?? 'Launch blocked');
-      } else {
-        await refresh();
+    const fetchRuns = async () => {
+      try {
+        const res = await fetch('/api/runs');
+        const data = await res.json() as { runs: RunState[] };
+        setRuns(data.runs ?? []);
+        // Auto-select most recent if none selected
+        if (!selectedRunId && data.runs?.length > 0) {
+          setSelectedRunId(data.runs[0].run_id);
+        }
+      } catch {
+        // server may not be up yet
       }
-    } catch (e) {
-      setLastLaunchError(String(e));
-    } finally {
-      setLaunching(false);
-    }
-  }, [refresh]);
+    };
+
+    fetchRuns();
+    const timer = setInterval(fetchRuns, 5000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectedRun = runs.find(r => r.run_id === selectedRunId) ?? null;
 
   return (
-    <DashboardCtx.Provider value={{ compliance, runs, targetName, selectedRunId, setSelectedRunId, launching, lastLaunchError, launchRun, refresh }}>
+    <DashboardContext.Provider value={{ runs, selectedRunId, setSelectedRunId, selectedRun }}>
       {children}
-    </DashboardCtx.Provider>
+    </DashboardContext.Provider>
   );
 }
 
-export const useDashboard = () => useContext(DashboardCtx);
+export function useDashboard() {
+  return useContext(DashboardContext);
+}

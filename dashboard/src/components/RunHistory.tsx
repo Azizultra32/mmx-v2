@@ -1,57 +1,59 @@
 import { useDashboard } from '../context/DashboardContext';
 
-const STATE_COLOR: Record<string, string> = {
-  COMPLETE: 'var(--green)',
-  FAILED: 'var(--red)',
-  INITIALIZED: 'var(--dim)',
-  CATHEDRALED: 'var(--blue)',
-  RUNNING: 'var(--yellow)',
+const STATE_CLASS: Record<string, string> = {
+  pending:  'state-pending',
+  running:  'state-running',
+  complete: 'state-complete',
+  failed:   'state-failed',
 };
 
+function shortId(id: string): string {
+  // e.g. "run-1234567890" → "run-1234567890" or truncate long UUIDs
+  return id.length > 24 ? `…${id.slice(-20)}` : id;
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export function RunHistory() {
-  const { runs, targetName, selectedRunId, setSelectedRunId } = useDashboard();
+  const { runs, selectedRunId, setSelectedRunId } = useDashboard();
 
   return (
-    <div className="panel">
-      <div className="panel-title">Mission History</div>
-      {runs.length === 0 ? (
-        <div style={{ color: 'var(--dim)', fontSize: 13, lineHeight: 1.8 }}>
-          No missions recorded for <span style={{ color: 'var(--blue)' }}>{targetName}</span> yet.
-          <br />Launch one above to get started.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {runs.map((run) => {
-            const active = run.runId === selectedRunId;
-            const stateColor = STATE_COLOR[run.state] ?? 'var(--dim)';
-            return (
-              <button
-                key={run.runId}
-                onClick={() => setSelectedRunId(active ? null : run.runId)}
-                style={{
-                  textAlign: 'left',
-                  background: active ? 'rgba(88,166,255,0.08)' : 'var(--bg3)',
-                  border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
-                  borderRadius: 4,
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                  color: 'var(--text)',
-                  fontFamily: 'var(--font)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{run.runId}</span>
-                  <span style={{ fontSize: 12, color: stateColor, fontWeight: 700 }}>{run.state}</span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--dim)' }}>
-                  Level {run.level} · ${run.totalCostUsd.toFixed(4)}
-                  {run.updatedAt && <span> · {new Date(run.updatedAt).toLocaleString()}</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+    <div className="run-history">
+      <h3>Run History</h3>
+      {runs.length === 0 && (
+        <div style={{ color: 'var(--dim)', padding: '8px 4px' }}>No runs yet</div>
       )}
+      {runs.map(run => (
+        <div
+          key={run.run_id}
+          className={`run-item ${run.run_id === selectedRunId ? 'selected' : ''}`}
+          onClick={() => setSelectedRunId(run.run_id)}
+        >
+          <div className="run-item-id">{shortId(run.run_id)}</div>
+          <div className="run-item-meta">
+            <span className={`header-state ${STATE_CLASS[run.state] ?? 'state-pending'}`}>
+              {run.state}
+            </span>
+            <span style={{ color: 'var(--dim)' }}>L{run.level}</span>
+            <span className="run-cost">${run.total_cost_usd.toFixed(4)}</span>
+          </div>
+          <div style={{ color: 'var(--dim)', fontSize: '10px', marginTop: '2px' }}>
+            {formatDate(run.updated_at)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
