@@ -1,28 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { buildRunnerOptions, COMPLETION_SIGNAL } from './sdk-runner.js';
+import { buildPromptOptions, COMPLETION_SIGNAL, DEFAULT_MODEL } from './sdk-runner.js';
 
-describe('COMPLETION_SIGNAL', () => {
-  it('is AUTONOMOUS_COMPLETE', () => {
+describe('SDK runner', () => {
+  it('COMPLETION_SIGNAL is defined', () => {
     expect(COMPLETION_SIGNAL).toBe('AUTONOMOUS_COMPLETE');
   });
-});
 
-describe('buildRunnerOptions', () => {
-  it('never includes apiKey', () => {
-    const opts = buildRunnerOptions({ model: 'claude-opus-4-6', systemPrompt: 'Do work.', maxTurns: 10 });
-    expect(opts).not.toHaveProperty('apiKey');
+  it('DEFAULT_MODEL is claude-opus-4-6', () => {
+    expect(DEFAULT_MODEL).toBe('claude-opus-4-6');
+  });
+
+  it('buildPromptOptions does not include apiKey', () => {
+    const opts = buildPromptOptions({ model: 'claude-opus-4-6', systemPrompt: 'test', maxTurns: 10 });
+    expect('apiKey' in opts).toBe(false);
     expect(opts.model).toBe('claude-opus-4-6');
     expect(opts.maxTurns).toBe(10);
   });
 
-  it('injects completion signal into system prompt', () => {
-    const opts = buildRunnerOptions({ model: 'claude-sonnet-4-6', systemPrompt: 'Do work.', maxTurns: 5 });
-    expect(opts.system).toContain(COMPLETION_SIGNAL);
-    expect(opts.system).toContain('Do work.');
-  });
-
-  it('uses provided model', () => {
-    const opts = buildRunnerOptions({ model: 'claude-haiku-4-5', systemPrompt: 'test', maxTurns: 3 });
-    expect(opts.model).toBe('claude-haiku-4-5');
+  it('appends AUTONOMOUS_COMPLETE instruction to systemPrompt', () => {
+    const opts = buildPromptOptions({ model: 'claude-opus-4-6', systemPrompt: 'sys', maxTurns: 5 });
+    expect(opts.systemPrompt).toContain('AUTONOMOUS_COMPLETE');
+    expect(opts.systemPrompt).toContain('sys');
   });
 });

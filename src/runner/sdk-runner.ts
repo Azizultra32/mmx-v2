@@ -1,83 +1,109 @@
-import type { RunCard } from '../core/types.js';
+import type { RunCard, RunnerResult } from '../core/types.js';
 
 export const COMPLETION_SIGNAL = 'AUTONOMOUS_COMPLETE';
+export const DEFAULT_MODEL = 'claude-opus-4-6';
 
-export interface RunnerOptions {
-  model: string;
-  system: string;
-  maxTurns: number;
-  // NO apiKey — Max subscription authenticates via Claude Code CLI automatically
-}
+// Pricing for claude-opus-4-6
+const INPUT_PRICE_PER_TOKEN = 15 / 1_000_000;   // $15 per million input tokens
+const OUTPUT_PRICE_PER_TOKEN = 75 / 1_000_000;  // $75 per million output tokens
 
-export function buildRunnerOptions(opts: {
+/**
+ * Builds SDK options without apiKey.
+ * Authentication happens automatically through the Claude Code Max subscription CLI session.
+ */
+export function buildPromptOptions(opts: {
   model: string;
   systemPrompt: string;
   maxTurns: number;
-}): RunnerOptions {
+}): {
+  model: string;
+  systemPrompt: string;
+  maxTurns: number;
+} {
   return {
     model: opts.model,
-    system: `${opts.systemPrompt}\n\nWhen your task is complete, output "${COMPLETION_SIGNAL}" on its own line.`,
+    systemPrompt:
+      opts.systemPrompt +
+      `\n\nWhen your task is complete, output "${COMPLETION_SIGNAL}" on its own line.`,
     maxTurns: opts.maxTurns,
   };
 }
 
-export interface RunnerResult {
-  ok: boolean;
-  output: string;
-  completed: boolean;
-  costUsd: number;
-  error?: string;
-}
-
+/**
+ * Runs a stage via the Agent SDK.
+ * Uses dynamic import of @anthropic-ai/claude-agent-sdk with NO apiKey.
+ */
 export async function runWithSDK(opts: {
   runCard: RunCard;
-  systemPrompt: string;
-  userPrompt: string;
-  model?: string;
-  maxTurns?: number;
+  assembledPrompt: string;  // the 4-block envelope systemPrompt
+  payload: string;           // user prompt / payload
   onOutput?: (text: string) => void;
 }): Promise<RunnerResult> {
-  const { query } = await import('@anthropic-ai/claude-agent-sdk');
-  const runnerOpts = buildRunnerOptions({
-    model: opts.model ?? 'claude-opus-4-6',
-    systemPrompt: opts.systemPrompt,
-    maxTurns: opts.maxTurns ?? 20,
-  });
-
-  const outputParts: string[] = [];
-  let completed = false;
-  let costUsd = 0;
-
   try {
-    // No apiKey — SDK uses Claude Code Max subscription credentials automatically
-    const stream = query({
-      prompt: opts.userPrompt,
+    const { query } = await import('@anthropic-ai/claude-agent-sdk');
+
+    const maxTurns = opts.runCard.thread.max_turns ?? 20;
+    const promptOpts = buildPromptOptions({
+      model: DEFAULT_MODEL,
+      systemPrompt: opts.assembledPrompt,
+      maxTurns,
+    });
+
+    const queryResult = query({
+      prompt: opts.payload,
       options: {
-        model: runnerOpts.model,
-        systemPrompt: runnerOpts.system,
-        maxTurns: runnerOpts.maxTurns,
+        model: promptOpts.model,
+        systemPrompt: promptOpts.systemPrompt,
+        maxTurns: promptOpts.maxTurns,
       },
     });
 
-    for await (const event of stream) {
+    let output = '';
+    let completed = false;
+    let costUsd = 0;
+
+    for await (const event of queryResult) {
       if (event.type === 'assistant') {
-        for (const block of event.message.content) {
+        // Collect text blocks from assistant messages
+        const message = event.message;
+        for (const block of message.content) {
           if (block.type === 'text') {
-            outputParts.push(block.text);
-            opts.onOutput?.(block.text);
-            if (block.text.includes(COMPLETION_SIGNAL)) completed = true;
+            output += block.text;
+            if (opts.onOutput) {
+              opts.onOutput(block.text);
+            }
+            if (block.text.includes(COMPLETION_SIGNAL)) {
+              completed = true;
+            }
           }
+        }
+      } else if (event.type === 'result') {
+        // Extract cost from the result message
+        if ('total_cost_usd' in event && typeof event.total_cost_usd === 'number') {
+          costUsd = event.total_cost_usd;
+        } else if ('usage' in event && event.usage) {
+          // Fallback: compute from token counts
+          const usage = event.usage as { input_tokens?: number; output_tokens?: number };
+          const inputTokens = usage.input_tokens ?? 0;
+          const outputTokens = usage.output_tokens ?? 0;
+          costUsd = inputTokens * INPUT_PRICE_PER_TOKEN + outputTokens * OUTPUT_PRICE_PER_TOKEN;
         }
       }
     }
-    return { ok: true, output: outputParts.join(''), completed, costUsd };
+
+    return {
+      ok: true,
+      output,
+      completed,
+      costUsd,
+    };
   } catch (err) {
     return {
       ok: false,
-      output: outputParts.join(''),
+      output: '',
       completed: false,
-      costUsd,
-      error: err instanceof Error ? err.message : String(err),
+      costUsd: 0,
+      error: String(err),
     };
   }
 }
