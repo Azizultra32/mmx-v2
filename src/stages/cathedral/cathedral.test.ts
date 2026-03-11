@@ -1,60 +1,46 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { runCathedral } from './cathedral.js';
+import { runCathedral } from './index.js';
+import { Paths } from '../../core/paths.js';
 
-let tmpDir: string;
+describe('runCathedral (dryRun)', () => {
+  let tmpDir: string;
+  const runId = 'mmx-test01';
 
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-cath-'));
-  await fs.writeFile(
-    path.join(tmpDir, 'package.json'),
-    JSON.stringify({ name: 'test-repo', version: '1.0.0', dependencies: { lodash: '^4.0.0' } }),
-  );
-  await fs.writeFile(path.join(tmpDir, 'index.ts'), 'export const foo = 1;');
-});
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-cathedral-'));
+  });
 
-afterEach(async () => {
-  await fs.rm(tmpDir, { recursive: true, force: true });
-});
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
 
-describe('runCathedral', () => {
-  it('returns cathedral stage result with correct fields', async () => {
-    const result = await runCathedral({
-      targetPath: tmpDir,
-      runId: 'mmx-test',
-      level: 1,
-      dryRun: true,
-    });
-    expect(result.stage).toBe('cathedral');
-    expect(result.runId).toBe('mmx-test');
+  it('creates brief.md and schematics/index.json', async () => {
+    const result = await runCathedral({ targetPath: tmpDir, runId, level: 1, dryRun: true });
+
     expect(result.ok).toBe(true);
+    expect(result.stage).toBe('cathedral');
     expect(result.costUsd).toBe(0);
+
+    const paths = new Paths(tmpDir, runId);
+    const brief = await fs.readFile(paths.cathedral.brief, 'utf-8');
+    expect(brief).toContain('Cathedral Brief');
+    expect(brief).toContain(runId);
+
+    const schematics = await fs.readFile(paths.cathedral.schematics, 'utf-8');
+    const schema = JSON.parse(schematics);
+    expect(schema.run_id).toBe(runId);
+    expect(Array.isArray(schema.subsystems)).toBe(true);
+    expect(typeof schema.generated_at).toBe('string');
   });
 
-  it('dryRun creates schematic file on disk', async () => {
-    const result = await runCathedral({
-      targetPath: tmpDir,
-      runId: 'mmx-dry',
-      level: 1,
-      dryRun: true,
-    });
-    const raw = await fs.readFile(result.outputPaths.schematic, 'utf-8');
-    const schematic = JSON.parse(raw);
-    expect(schematic.repo).toBe(tmpDir);
-    expect(schematic.mappedAt).toBeDefined();
-  });
+  it('returns correct outputPaths', async () => {
+    const paths = new Paths(tmpDir, runId);
+    const result = await runCathedral({ targetPath: tmpDir, runId, level: 1, dryRun: true });
 
-  it('dryRun creates output dir under .metamatrix/runs/<runId>/cathedral/', async () => {
-    const result = await runCathedral({
-      targetPath: tmpDir,
-      runId: 'mmx-dir-test',
-      level: 1,
-      dryRun: true,
-    });
-    const expectedDir = path.join(tmpDir, '.metamatrix', 'runs', 'mmx-dir-test', 'cathedral');
-    await expect(fs.access(expectedDir)).resolves.not.toThrow();
-    expect(result.outputPaths.schematic).toContain(expectedDir);
+    expect(result.outputPaths.brief).toBe(paths.cathedral.brief);
+    expect(result.outputPaths.schematics).toBe(paths.cathedral.schematics);
   });
 });
