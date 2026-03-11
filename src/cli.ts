@@ -1,38 +1,71 @@
-import { parseArgs } from 'util';
+#!/usr/bin/env node
+import { run } from './commands/run.js';
+import { preflight } from './commands/preflight.js';
 
-const { values, positionals } = parseArgs({
-  args: process.argv.slice(2),
-  options: {
-    repo: { type: 'string' },
-    level: { type: 'string', default: '1' },
-    port: { type: 'string', default: '4242' },
-  },
-  allowPositionals: true,
+const args = process.argv.slice(2);
+const command = args[0];
+
+function parseFlag(flag: string): string | undefined {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return undefined;
+  return args[idx + 1];
+}
+
+function hasFlag(flag: string): boolean {
+  return args.includes(flag);
+}
+
+async function main(): Promise<void> {
+  switch (command) {
+    case 'run': {
+      const targetPath = args[1];
+      if (!targetPath) {
+        console.error('Usage: mmx-v2 run <targetPath> [--level N] [--dry-run]');
+        process.exit(1);
+      }
+      const levelStr = parseFlag('--level');
+      const level = levelStr ? parseInt(levelStr, 10) : 1;
+      const dryRun = hasFlag('--dry-run');
+      await run({ targetPath, level, dryRun });
+      break;
+    }
+
+    case 'preflight': {
+      const targetPath = args[1];
+      if (!targetPath) {
+        console.error('Usage: mmx-v2 preflight <targetPath>');
+        process.exit(1);
+      }
+      await preflight({ targetPath });
+      break;
+    }
+
+    case 'dashboard': {
+      const targetPath = parseFlag('--repo');
+      const portStr = parseFlag('--port');
+      const port = portStr ? parseInt(portStr, 10) : 4242;
+      if (!targetPath) {
+        console.error('Usage: mmx-v2 dashboard --repo <targetPath> [--port 4242]');
+        process.exit(1);
+      }
+      console.log(`[MMX Dashboard] Starting on port ${port} for repo: ${targetPath}`);
+      console.log('[MMX Dashboard] Dashboard not yet implemented — stub placeholder.');
+      break;
+    }
+
+    default: {
+      console.log('MMX v2 — Contract-driven multi-agent orchestration engine');
+      console.log('');
+      console.log('Usage:');
+      console.log('  mmx-v2 run <targetPath> --level 1 [--dry-run]');
+      console.log('  mmx-v2 preflight <targetPath>');
+      console.log('  mmx-v2 dashboard --repo <targetPath> [--port 4242]');
+      process.exit(command ? 1 : 0);
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error('[MMX] Fatal error:', err);
+  process.exit(1);
 });
-
-const command = positionals[0];
-const targetPath = values.repo;
-
-if (!targetPath) {
-  console.error('Error: --repo <path> is required');
-  console.error('Usage: mmx-v2 <preflight|run|dashboard> --repo <path> [--level <n>] [--port <n>]');
-  process.exit(1);
-}
-
-const level = parseInt(values.level ?? '1', 10);
-const port = parseInt(values.port ?? '4242', 10);
-
-if (command === 'preflight') {
-  const { preflight } = await import('./commands/preflight.js');
-  await preflight({ targetPath, level });
-} else if (command === 'run') {
-  const { run } = await import('./commands/run.js');
-  await run({ targetPath, level });
-} else if (command === 'dashboard') {
-  const { startDashboard } = await import('./commands/dashboard.js');
-  await startDashboard({ targetPath, port });
-} else {
-  console.error(`Unknown command: ${command ?? '(none)'}`);
-  console.error('Usage: mmx-v2 <preflight|run|dashboard> --repo <path>');
-  process.exit(1);
-}

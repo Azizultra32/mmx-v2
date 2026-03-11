@@ -1,24 +1,27 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { checkThreeLaws } from '../core/three-laws.js';
+import { enforceLaws, ThreeLawsError } from '../core/three-laws.js';
 
-export async function preflight(opts: { targetPath: string; level: number }): Promise<void> {
-  const enginePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-  console.log('── MMX v2 Preflight ──');
-  console.log(`Engine: ${enginePath}`);
-  console.log(`Target: ${opts.targetPath}`);
-  console.log(`Level:  ${opts.level}\n`);
+export interface PreflightOptions {
+  targetPath: string;
+}
 
-  const result = await checkThreeLaws({ enginePath, targetPath: opts.targetPath });
+export async function preflight(opts: PreflightOptions): Promise<void> {
+  const { targetPath } = opts;
 
-  if (result.ok) {
-    console.log('✅ All checks passed. Ready to run.');
-  } else {
-    console.log('❌ Preflight failed:');
-    for (const v of result.violations) console.log(`  - ${v}`);
-    if (result.dirtyPaths.length > 0) {
-      console.log('  Dirty files:');
-      for (const f of result.dirtyPaths) console.log(`    ${f}`);
+  console.log(`[MMX Preflight] Checking target: ${targetPath}`);
+
+  try {
+    await enforceLaws({
+      enginePath: process.cwd(),
+      targetPath,
+    });
+    console.log('[MMX Preflight] PASS — Three Laws check passed.');
+    console.log('[MMX Preflight] Target is safe to process.');
+  } catch (err) {
+    if (err instanceof ThreeLawsError) {
+      console.error(`[MMX Preflight] FAIL — Law violation: ${err.law}`);
+      console.error(`[MMX Preflight] ${err.message}`);
+    } else {
+      console.error(`[MMX Preflight] FAIL — Unexpected error: ${String(err)}`);
     }
     process.exit(1);
   }
