@@ -1,75 +1,82 @@
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
-import type { InvestigationState, StateValue } from '../core/types.js';
-import { runDir, runStatePath } from './paths.js';
+import { UnitState } from '../core/types.js';
 
-export async function initRun(
-  targetPath: string,
-  runId: string,
-  level: number,
-): Promise<InvestigationState> {
-  await fs.mkdir(runDir(targetPath, runId), { recursive: true });
-  const state: InvestigationState = {
-    version: '2.0',
-    runId,
-    targetPath,
-    level,
-    state: 'INITIALIZED',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    totalCostUsd: 0,
-  };
-  await writeRunState(targetPath, runId, state);
-  return state;
+export interface RunState {
+  run_id: string;
+  target_path: string;
+  level: number;
+  state: UnitState;
+  active_stage: string | null;
+  total_cost_usd: number;
+  created_at: string;   // ISO-8601
+  updated_at: string;   // ISO-8601
+  completed_at: string | null;
+  error: string | null;
 }
 
-export async function readRunState(
-  targetPath: string,
-  runId: string,
-): Promise<InvestigationState | null> {
-  try {
-    const raw = await fs.readFile(runStatePath(targetPath, runId), 'utf-8');
-    return JSON.parse(raw) as InvestigationState;
-  } catch {
-    return null;
+export class RunRegistry {
+  private readonly registryPath: string;
+  private readonly targetPath: string;
+  private readonly runId: string;
+
+  constructor(targetPath: string, runId: string) {
+    this.targetPath = targetPath;
+    this.runId = runId;
+    this.registryPath = path.join(
+      targetPath,
+      '.metamatrix',
+      'runs',
+      runId,
+      'registry',
+      'run.json',
+    );
   }
-}
 
-export async function writeRunState(
-  targetPath: string,
-  runId: string,
-  state: InvestigationState,
-): Promise<void> {
-  const p = runStatePath(targetPath, runId);
-  await fs.mkdir(path.dirname(p), { recursive: true });
-  await fs.writeFile(p, JSON.stringify(state, null, 2), 'utf-8');
-}
+  async init(opts: { level: number; targetPath?: string }): Promise<void> {
+    await fs.mkdir(path.dirname(this.registryPath), { recursive: true });
 
-export async function transitionState(
-  targetPath: string,
-  runId: string,
-  newState: StateValue,
-  error?: string,
-): Promise<InvestigationState> {
-  const current = await readRunState(targetPath, runId);
-  if (!current) throw new Error(`No state for run ${runId}`);
-  const updated: InvestigationState = {
-    ...current,
-    state: newState,
-    updatedAt: new Date().toISOString(),
-    completedAt: ['COMPLETE', 'FAILED'].includes(newState) ? new Date().toISOString() : undefined,
-    error,
-  };
-  await writeRunState(targetPath, runId, updated);
-  return updated;
-}
+    const now = new Date().toISOString();
+    const state: RunState = {
+      run_id: this.runId,
+      target_path: opts.targetPath ?? this.targetPath,
+      level: opts.level,
+      state: 'pending',
+      active_stage: null,
+      total_cost_usd: 0,
+      created_at: now,
+      updated_at: now,
+      completed_at: null,
+      error: null,
+    };
 
-export async function listRunIds(targetPath: string): Promise<string[]> {
-  const { runsDir } = await import('./paths.js');
-  try {
-    const entries = await fs.readdir(runsDir(targetPath), { withFileTypes: true });
-    return entries.filter(e => e.isDirectory()).map(e => e.name).reverse();
-  } catch {
-    return [];
+    await fs.writeFile(this.registryPath, JSON.stringify(state, null, 2), 'utf8');
+  }
+
+  async read(): Promise<RunState> {
+    const raw = await fs.readFile(this.registryPath, 'utf8');
+    return JSON.parse(raw) as RunState;
+  }
+
+  async transition(
+    newState: UnitState,
+    opts?: { stage?: string; costUsd?: number; error?: string },
+  ): Promise<void> {
+    const current = await this.read();
+    const now = new Date().toISOString();
+
+    const isTerminal = newState === 'complete' || newState === 'failed';
+
+    const updated: RunState = {
+      ...current,
+      state: newState,
+      active_stage: opts?.stage !== undefined ? opts.stage : current.active_stage,
+      total_cost_usd: current.total_cost_usd + (opts?.costUsd ?? 0),
+      updated_at: now,
+      completed_at: isTerminal ? now : current.completed_at,
+      error: opts?.error !== undefined ? opts.error : current.error,
+    };
+
+    await fs.writeFile(this.registryPath, JSON.stringify(updated, null, 2), 'utf8');
   }
 }
