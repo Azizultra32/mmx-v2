@@ -1,67 +1,68 @@
-import { execFile as execFileCb } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 
-const execFile = promisify(execFileCb);
+const execFileAsync = promisify(execFile);
 
-export type ThreeLawsViolation =
-  | 'ENGINE_EQUALS_TARGET'
-  | 'TARGET_DIRTY'
-  | 'WORKSPACE_OUTSIDE_TARGET';
-
-export interface ThreeLawsResult {
-  ok: boolean;
-  violations: ThreeLawsViolation[];
-  dirtyPaths: string[];
+export interface ThreeLawsOptions {
+  enginePath: string;
+  targetPath: string;
+  workspacePath?: string;
 }
 
 export class ThreeLawsError extends Error {
-  constructor(public violations: ThreeLawsViolation[], public dirtyPaths: string[]) {
-    super(`Three Laws violated: ${violations.join(', ')}`);
+  constructor(public readonly law: string, message: string) {
+    super(`${law}: ${message}`);
+    this.name = 'ThreeLawsError';
   }
 }
 
-export async function checkThreeLaws(opts: {
-  enginePath: string;
-  targetPath: string;
-  workspacePath?: string;
-}): Promise<ThreeLawsResult> {
-  const violations: ThreeLawsViolation[] = [];
-  const dirtyPaths: string[] = [];
+export async function enforceLaws(options: ThreeLawsOptions): Promise<void> {
+  const { enginePath, targetPath, workspacePath } = options;
 
-  if (path.resolve(opts.enginePath) === path.resolve(opts.targetPath)) {
-    violations.push('ENGINE_EQUALS_TARGET');
+  const resolvedEngine = path.resolve(enginePath);
+  const resolvedTarget = path.resolve(targetPath);
+
+  // Law 1: ENGINE_EQUALS_TARGET
+  if (resolvedEngine === resolvedTarget) {
+    throw new ThreeLawsError(
+      'ENGINE_EQUALS_TARGET',
+      `Engine path and target path must not be the same: ${resolvedEngine}`
+    );
   }
 
+  // Law 2: WORKSPACE_OUTSIDE_TARGET
+  if (workspacePath !== undefined) {
+    const resolvedWorkspace = path.resolve(workspacePath);
+    const expectedPrefix = path.join(resolvedTarget, '.metamatrix');
+    if (!resolvedWorkspace.startsWith(expectedPrefix)) {
+      throw new ThreeLawsError(
+        'WORKSPACE_OUTSIDE_TARGET',
+        `Workspace path must be inside <targetPath>/.metamatrix. Got: ${resolvedWorkspace}, expected prefix: ${expectedPrefix}`
+      );
+    }
+  }
+
+  // Law 3: TARGET_DIRTY
   try {
-    const { stdout } = await execFile('git', ['status', '--porcelain'], {
-      cwd: opts.targetPath,
-    });
-    for (const line of stdout.split('\n')) {
-      const file = line.slice(3).trim();
-      if (file && !file.startsWith('.metamatrix')) {
-        dirtyPaths.push(file);
-      }
+    const { stdout } = await execFileAsync('git', ['-C', resolvedTarget, 'status', '--porcelain']);
+    const dirtyLines = stdout
+      .split('\n')
+      .filter((line) => line.trim().length > 0)
+      .filter((line) => !line.includes('.metamatrix'));
+
+    if (dirtyLines.length > 0) {
+      throw new ThreeLawsError(
+        'TARGET_DIRTY',
+        `Target repo has dirty tracked files:\n${dirtyLines.join('\n')}`
+      );
     }
-    if (dirtyPaths.length > 0) violations.push('TARGET_DIRTY');
-  } catch {
-    // not a git repo — skip
-  }
-
-  if (opts.workspacePath) {
-    if (!path.resolve(opts.workspacePath).startsWith(path.resolve(opts.targetPath))) {
-      violations.push('WORKSPACE_OUTSIDE_TARGET');
+  } catch (err) {
+    // If it's our own ThreeLawsError, rethrow
+    if (err instanceof ThreeLawsError) {
+      throw err;
     }
+    // If git is not available or target is not a git repo, skip silently
+    // (execFile throws when exit code != 0 or command not found)
   }
-
-  return { ok: violations.length === 0, violations, dirtyPaths };
-}
-
-export async function enforceLaws(opts: {
-  enginePath: string;
-  targetPath: string;
-  workspacePath?: string;
-}): Promise<void> {
-  const result = await checkThreeLaws(opts);
-  if (!result.ok) throw new ThreeLawsError(result.violations, result.dirtyPaths);
 }
