@@ -48,8 +48,8 @@ async function main(): Promise<void> {
         console.error('Usage: mmx-v2 dashboard --repo <targetPath> [--port 4242]');
         process.exit(1);
       }
-      console.log(`[MMX Dashboard] Starting on port ${port} for repo: ${targetPath}`);
-      console.log('[MMX Dashboard] Dashboard not yet implemented — stub placeholder.');
+      const { startDashboard } = await import('./commands/dashboard.js');
+      startDashboard({ targetPath, port });
       break;
     }
 
