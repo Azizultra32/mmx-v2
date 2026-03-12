@@ -4,6 +4,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { randomBytes } from 'node:crypto';
 import { Paths } from '../core/paths.js';
 import { RunRegistry, type RunState } from '../state/machine.js';
 
@@ -196,29 +197,58 @@ export function buildDashboardServer(opts: { targetPath: string; port?: number }
 
     // ── POST /api/run ───────────────────────────────────────────────────────
     if (method === 'POST' && pathname === '/api/run') {
-      let body = '';
-      req.on('data', chunk => { body += chunk; });
-      req.on('end', () => {
+      void (async () => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
         let parsed: Record<string, unknown> = {};
-        try { parsed = JSON.parse(body); } catch { /* ignore */ }
+        try { parsed = JSON.parse(Buffer.concat(chunks).toString()); } catch { /* ignore */ }
 
+        const resolvedTarget = typeof parsed.targetPath === 'string' ? parsed.targetPath : targetPath;
         const level = String(parsed.level ?? '1');
+        const runId = randomBytes(8).toString('hex');
         const cliPath = path.resolve(__dirname, '../../dist/cli.js');
 
-        execFile('node', [cliPath, 'run', targetPath, '--level', level], (err) => {
+        execFile('node', [cliPath, 'run', resolvedTarget, '--level', level], (err) => {
           if (err) {
             // Non-zero exit is not necessarily fatal for spawning — run started
           }
         });
 
-        // Return immediately with optimistic runId derived from timestamp
-        const runId = `run-${Date.now()}`;
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         });
         res.end(JSON.stringify({ ok: true, runId }));
-      });
+      })();
+      return;
+    }
+
+    // ── POST /api/run/:runId/approve ────────────────────────────────────────
+    const approveMatch = pathname.match(/^\/api\/run\/([^/]+)\/approve$/);
+    if (method === 'POST' && approveMatch) {
+      void (async () => {
+        const runId = approveMatch[1];
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        let body: { approved?: boolean } = {};
+        try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch { /* ok */ }
+
+        const approvalPath = path.join(
+          targetPath, '.metamatrix', 'runs', runId, 'humangate', 'human-approval.json'
+        );
+        await fsp.mkdir(path.dirname(approvalPath), { recursive: true });
+        await fsp.writeFile(approvalPath, JSON.stringify({
+          approved: body.approved ?? true,
+          decided_at: new Date().toISOString(),
+          decided_by: 'dashboard',
+        }, null, 2));
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ ok: true, runId, approved: body.approved ?? true }));
+      })();
       return;
     }
 
