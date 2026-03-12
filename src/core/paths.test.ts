@@ -4,12 +4,24 @@ import { Paths } from './paths.js';
 
 const TARGET = '/project/root';
 const RUN_ID = 'run-001';
-const BASE = path.join(TARGET, '.metamatrix', 'runs', RUN_ID);
+const BASE = path.join(TARGET, '.mmx', 'runs', RUN_ID);
 const FID8 = 'ab12cd34';
 
 const p = new Paths(TARGET, RUN_ID);
 
 describe('Paths', () => {
+  describe('workspace', () => {
+    it('targetJson', () => {
+      expect(p.workspace.targetJson).toBe(path.join(TARGET, '.mmx', 'target.json'));
+    });
+    it('currentJson', () => {
+      expect(p.workspace.currentJson).toBe(path.join(TARGET, '.mmx', 'current.json'));
+    });
+    it('historyJson', () => {
+      expect(p.workspace.historyJson).toBe(path.join(TARGET, '.mmx', 'history.json'));
+    });
+  });
+
   describe('cathedral', () => {
     it('brief', () => {
       expect(p.cathedral.brief).toBe(path.join(BASE, 'cathedral', 'brief.md'));

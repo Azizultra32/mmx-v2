@@ -34,11 +34,11 @@ export async function enforceLaws(options: ThreeLawsOptions): Promise<void> {
   // Law 2: WORKSPACE_OUTSIDE_TARGET
   if (workspacePath !== undefined) {
     const resolvedWorkspace = path.resolve(workspacePath);
-    const expectedPrefix = path.join(resolvedTarget, '.metamatrix');
+    const expectedPrefix = path.join(resolvedTarget, '.mmx');
     if (!resolvedWorkspace.startsWith(expectedPrefix)) {
       throw new ThreeLawsError(
         'WORKSPACE_OUTSIDE_TARGET',
-        `Workspace path must be inside <targetPath>/.metamatrix. Got: ${resolvedWorkspace}, expected prefix: ${expectedPrefix}`
+        `Workspace path must be inside <targetPath>/.mmx. Got: ${resolvedWorkspace}, expected prefix: ${expectedPrefix}`
       );
     }
   }
@@ -49,7 +49,7 @@ export async function enforceLaws(options: ThreeLawsOptions): Promise<void> {
     const dirtyLines = stdout
       .split('\n')
       .filter((line) => line.trim().length > 0)
-      .filter((line) => !line.includes('.metamatrix'));
+      .filter((line) => !line.includes('.mmx'));
 
     if (dirtyLines.length > 0) {
       throw new ThreeLawsError(

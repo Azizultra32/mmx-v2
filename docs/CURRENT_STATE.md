@@ -14,25 +14,23 @@ Last updated: 2026-03-12
 - [x] React dashboard UI (dark theme, stage dots, LaunchBar, HumanGate panel)
 
 ### Workspace
-- [x] Workspace written to `<target>/.metamatrix/runs/<runId>/` (NOTE: still `.metamatrix/`, not `.mmx/`)
+- [x] Workspace written to `<target>/.mmx/runs/<runId>/` ✓
 - [x] `Paths` class provides all artifact paths per stage (`src/core/paths.ts`)
 - [x] `RunRegistry` writes run state to `runs/<runId>/registry/run.json` (`src/state/machine.ts`)
 - [x] `EventSpine` appends to `runs/<runId>/events/activity.jsonl`
 
 ### Dashboard
 - [x] POST /api/run spawns a CLI run (but reads body only partially)
-- [x] GET /api/runs returns runs from `.metamatrix/runs/`
+- [x] GET /api/runs returns runs from `.mmx/runs/`
 - [x] GET /api/events SSE stream from activity.jsonl
 - [x] POST /api/run/:id/approve writes human-approval.json
 
 ## What Is Broken / Missing
 
 ### 4-Surface Model Not Complete
-- [ ] Workspace dir is `.metamatrix/` — should be `.mmx/`
-- [ ] No `target.json` (target identity)
-- [ ] No `current.json` (active/selected/latest run pointers)
-- [ ] No `history.json` (run summary index)
-- [ ] Run IDs are `mmx-<hex>` (e.g. `mmx-a3f1b2c4`) — should be `run-001`, `run-002` (sequential per target)
+- [x] Workspace dir is `.mmx/` ✓
+- [x] `target.json`, `current.json`, `history.json` added ✓
+- [x] Run IDs are `run-001`, `run-002` (sequential) ✓
 
 ### Target Management Missing
 - [ ] No target registry

@@ -6,6 +6,11 @@ One entry per completed task. Format: task | files | proof | next.
 
 ## 2026-03-12
 
+### Task 1: Rename .metamatrix → .mmx, add target/current/history, sequential run IDs
+Files: src/core/paths.ts, src/state/machine.ts, src/commands/run.ts, src/core/three-laws.ts, src/core/contracts.ts, src/commands/dashboard.ts, src/core/paths.test.ts, src/core/three-laws.test.ts
+Proof: 167 tests pass, 0 TS errors, grep -r metamatrix src/ = empty
+Next: Demo Sandbox generator (src/scaffold/demo-sandbox.ts)
+
 ### Dashboard CSS + UI overhaul
 Files: `dashboard/src/App.css`, `StageSpine.tsx`, `LaunchBar.tsx`, `EventFeed.tsx`, `RunHistory.tsx`, `CostBreakdown.tsx`, `src/commands/dashboard.ts`
 Proof: 164 tests pass, `npm run build` zero errors, screenshot shows dark terminal UI with stage dots + LaunchBar

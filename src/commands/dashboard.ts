@@ -34,7 +34,7 @@ function sendSseData(res: http.ServerResponse, data: unknown): void {
 // ─── Run registry helpers ────────────────────────────────────────────────────
 
 async function listAllRuns(targetPath: string): Promise<RunState[]> {
-  const runsDir = path.join(targetPath, '.metamatrix', 'runs');
+  const runsDir = path.join(targetPath, '.mmx', 'runs');
   try {
     const entries = await fsp.readdir(runsDir);
     const runs: RunState[] = [];
@@ -234,7 +234,7 @@ export function buildDashboardServer(opts: { targetPath: string; port?: number }
         try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch { /* ok */ }
 
         const approvalPath = path.join(
-          targetPath, '.metamatrix', 'runs', runId, 'humangate', 'human-approval.json'
+          targetPath, '.mmx', 'runs', runId, 'humangate', 'human-approval.json'
         );
         await fsp.mkdir(path.dirname(approvalPath), { recursive: true });
         await fsp.writeFile(approvalPath, JSON.stringify({

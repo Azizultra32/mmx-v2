@@ -10,15 +10,15 @@ describe('Three Laws', () => {
       .rejects.toThrow('ENGINE_EQUALS_TARGET');
   });
 
-  it('throws WORKSPACE_OUTSIDE_TARGET when workspace not under .metamatrix', async () => {
+  it('throws WORKSPACE_OUTSIDE_TARGET when workspace not under .mmx', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-law-'));
     await expect(enforceLaws({ enginePath: '/engine', targetPath: tmpDir, workspacePath: '/outside' }))
       .rejects.toThrow('WORKSPACE_OUTSIDE_TARGET');
   });
 
-  it('passes when workspace is inside .metamatrix', async () => {
+  it('passes when workspace is inside .mmx', async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-law-'));
-    const workspace = path.join(tmpDir, '.metamatrix', 'runs', 'mmx-abc1');
+    const workspace = path.join(tmpDir, '.mmx', 'runs', 'run-001');
     await expect(enforceLaws({ enginePath: '/engine', targetPath: tmpDir, workspacePath: workspace }))
       .resolves.toBeUndefined();
   });

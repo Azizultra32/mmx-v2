@@ -1,6 +1,12 @@
 import path from 'node:path';
 
 export class Paths {
+  readonly workspace: {
+    targetJson: string;
+    currentJson: string;
+    historyJson: string;
+  };
+
   readonly cathedral: {
     brief: string;
     schematics: string;
@@ -69,7 +75,13 @@ export class Paths {
   };
 
   constructor(targetPath: string, runId: string) {
-    const base = path.join(targetPath, '.metamatrix', 'runs', runId);
+    const base = path.join(targetPath, '.mmx', 'runs', runId);
+
+    this.workspace = {
+      targetJson: path.join(targetPath, '.mmx', 'target.json'),
+      currentJson: path.join(targetPath, '.mmx', 'current.json'),
+      historyJson: path.join(targetPath, '.mmx', 'history.json'),
+    };
 
     this.cathedral = {
       brief: path.join(base, 'cathedral', 'brief.md'),
