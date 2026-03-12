@@ -1,29 +1,24 @@
 import { useDashboard } from '../context/DashboardContext';
+import type { RunState } from '../context/DashboardContext';
 
-const STATE_CLASS: Record<string, string> = {
-  pending:  'state-pending',
-  running:  'state-running',
-  complete: 'state-complete',
-  failed:   'state-failed',
-};
-
-function shortId(id: string): string {
-  // e.g. "run-1234567890" → "run-1234567890" or truncate long UUIDs
-  return id.length > 24 ? `…${id.slice(-20)}` : id;
+function timeSince(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  return `${Math.floor(diff / 3600000)}h ago`;
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  } catch {
-    return iso;
-  }
+function RunItem({ run, selected, onClick }: { run: RunState; selected: boolean; onClick: () => void }) {
+  return (
+    <div className={`run-item ${selected ? 'selected' : ''}`} onClick={onClick}>
+      <div className="run-id">{run.run_id}</div>
+      <div className="run-meta">
+        <span className={`run-state ${run.state}`}>{run.state}</span>
+        <span>${run.total_cost_usd.toFixed(4)}</span>
+        <span>{timeSince(run.created_at)}</span>
+      </div>
+    </div>
+  );
 }
 
 export function RunHistory() {
@@ -32,27 +27,14 @@ export function RunHistory() {
   return (
     <div className="run-history">
       <h3>Run History</h3>
-      {runs.length === 0 && (
-        <div style={{ color: 'var(--dim)', padding: '8px 4px' }}>No runs yet</div>
-      )}
+      {runs.length === 0 && <div className="empty-state">No runs yet</div>}
       {runs.map(run => (
-        <div
+        <RunItem
           key={run.run_id}
-          className={`run-item ${run.run_id === selectedRunId ? 'selected' : ''}`}
+          run={run}
+          selected={run.run_id === selectedRunId}
           onClick={() => setSelectedRunId(run.run_id)}
-        >
-          <div className="run-item-id">{shortId(run.run_id)}</div>
-          <div className="run-item-meta">
-            <span className={`header-state ${STATE_CLASS[run.state] ?? 'state-pending'}`}>
-              {run.state}
-            </span>
-            <span style={{ color: 'var(--dim)' }}>L{run.level}</span>
-            <span className="run-cost">${run.total_cost_usd.toFixed(4)}</span>
-          </div>
-          <div style={{ color: 'var(--dim)', fontSize: '10px', marginTop: '2px' }}>
-            {formatDate(run.updated_at)}
-          </div>
-        </div>
+        />
       ))}
     </div>
   );
