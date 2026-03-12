@@ -88,6 +88,25 @@ async function serveStatic(res: http.ServerResponse, filePath: string): Promise<
   }
 }
 
+// ─── Targets registry ─────────────────────────────────────────────────────────
+
+async function listTargets(): Promise<unknown[]> {
+  const results: unknown[] = [];
+  const sandboxTarget = path.join(process.env['HOME'] ?? '/tmp', 'mmx-sandbox', '.mmx', 'target.json');
+  try {
+    const data = await fsp.readFile(sandboxTarget, 'utf8');
+    const target = JSON.parse(data) as Record<string, unknown>;
+    const runsDir = path.join(process.env['HOME'] ?? '/tmp', 'mmx-sandbox', '.mmx', 'runs');
+    let runCount = 0;
+    try {
+      const entries = await fsp.readdir(runsDir, { withFileTypes: true });
+      runCount = entries.filter(e => e.isDirectory()).length;
+    } catch { /* no runs yet */ }
+    results.push({ ...target, run_count: runCount });
+  } catch { /* sandbox not created yet */ }
+  return results;
+}
+
 // ─── Core builder ────────────────────────────────────────────────────────────
 
 export function buildDashboardServer(opts: { targetPath: string; port?: number }): http.Server {
@@ -249,6 +268,34 @@ export function buildDashboardServer(opts: { targetPath: string; port?: number }
         });
         res.end(JSON.stringify({ ok: true, runId, approved: body.approved ?? true }));
       })();
+      return;
+    }
+
+    // ── POST /api/targets/scaffold ──────────────────────────────────────────
+    if (method === 'POST' && pathname === '/api/targets/scaffold') {
+      void (async () => {
+        try {
+          const { createDemoSandbox } = await import('../scaffold/demo-sandbox.js');
+          const result = await createDemoSandbox();
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ ok: true, targetPath: result.targetPath, targetId: result.targetId, displayName: result.displayName }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+      })();
+      return;
+    }
+
+    // ── GET /api/targets ────────────────────────────────────────────────────
+    if (method === 'GET' && pathname === '/api/targets') {
+      listTargets().then(targets => {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ targets }));
+      }).catch(err => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(err) }));
+      });
       return;
     }
 

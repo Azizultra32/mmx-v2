@@ -11,6 +11,11 @@ Files: src/core/paths.ts, src/state/machine.ts, src/commands/run.ts, src/core/th
 Proof: 167 tests pass, 0 TS errors, grep -r metamatrix src/ = empty
 Next: Demo Sandbox generator (src/scaffold/demo-sandbox.ts)
 
+### Task 2: Demo Sandbox generator
+Files: src/scaffold/demo-sandbox.ts, src/scaffold/demo-sandbox.test.ts, src/commands/dashboard.ts
+Proof: tests pass (168 total), ls ~/mmx-sandbox/.mmx/target.json exists after curl -X POST /api/targets/scaffold
+Next: Dashboard New Target UI (TargetSelector + NewTargetModal components)
+
 ### Dashboard CSS + UI overhaul
 Files: `dashboard/src/App.css`, `StageSpine.tsx`, `LaunchBar.tsx`, `EventFeed.tsx`, `RunHistory.tsx`, `CostBreakdown.tsx`, `src/commands/dashboard.ts`
 Proof: 164 tests pass, `npm run build` zero errors, screenshot shows dark terminal UI with stage dots + LaunchBar
