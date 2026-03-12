@@ -5,3 +5,5 @@ dist/
 .env
 .archive/
 dashboard/.archive/
+.claude/
+**/.claude/
