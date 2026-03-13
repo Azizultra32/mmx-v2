@@ -6,6 +6,13 @@ One entry per completed task. Format: task | files | proof | next.
 
 ## 2026-03-12
 
+### Task 8: Fix GAP 1 — find dryRun reads cathedral output
+Files: src/stages/find/index.ts
+Proof: TS 0 errors, all tests pass, run-003 find/raw/*.json contains cathedral_run_id matching cathedral schematics run_id
+Next: Fix GAP 2 (cathedral dryRun subsystems/source_refs empty) and GAP 3 (missing stage field in provenance)
+
+
+
 ### Task 1: Rename .metamatrix → .mmx, add target/current/history, sequential run IDs
 Files: src/core/paths.ts, src/state/machine.ts, src/commands/run.ts, src/core/three-laws.ts, src/core/contracts.ts, src/commands/dashboard.ts, src/core/paths.test.ts, src/core/three-laws.test.ts
 Proof: 167 tests pass, 0 TS errors, grep -r metamatrix src/ = empty

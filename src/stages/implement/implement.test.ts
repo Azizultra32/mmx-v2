@@ -15,6 +15,14 @@ describe('runImplement (dryRun)', () => {
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mmx-implement-'));
+    // Cathedral must run before find — write cathedral schematics
+    const paths = new Paths(tmpDir, runId);
+    await fs.mkdir(path.dirname(paths.cathedral.schematics), { recursive: true });
+    await fs.writeFile(
+      paths.cathedral.schematics,
+      JSON.stringify({ run_id: runId, subsystems: [], source_refs: [], generated_at: new Date().toISOString() }, null, 2),
+      'utf-8',
+    );
     await runFind({ targetPath: tmpDir, runId, level: 1, dryRun: true });
     await runDistill({ targetPath: tmpDir, runId, dryRun: true });
     await runPredict({ targetPath: tmpDir, runId, dryRun: true });

@@ -34,7 +34,7 @@ Each item requires proof: file path, API response, run folder, screenshot, or te
 
 Each item requires proof: file path, stage output contents, or validator output.
 
-- [ ] Cathedral writes `cathedral/schematics/index.json` before Find reads it
+- [x] Cathedral writes `cathedral/schematics/index.json` before Find reads it — find/index.ts reads it before dryRun branch, hard fails if missing
 - [ ] Find reads only declared inputs from cathedral output, writes to `find/raw/<fid8>.json`
 - [ ] Distill reads only `find/` outputs, writes to `distill/approved/<fid8>.packet.json`
 - [ ] Each stage's input handles are declared before execution starts

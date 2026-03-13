@@ -3,7 +3,6 @@ import path from 'path';
 import { Paths } from '../../core/paths.js';
 import { StageResult } from '../../core/types.js';
 import { EventSpine } from '../../enforcement/events.js';
-import { generateFid8 } from '../../core/fid8.js';
 import { loadRoleSkill } from '../../runner/role-loader.js';
 import { assemblePrompt } from '../../enforcement/prompt-assembler.js';
 import { runWithSDK } from '../../runner/sdk-runner.js';
@@ -26,11 +25,33 @@ export async function runFind(opts: {
     role: 'find',
   });
 
-  if (dryRun) {
-    const fid8s = [generateFid8(), generateFid8()];
-    const outputPaths: Record<string, string> = {};
+  // Read cathedral schematics FIRST (before dryRun branch) — hard fail if missing
+  let schematics: { run_id: string; subsystems: unknown[]; source_refs: unknown[]; generated_at: string };
+  try {
+    const raw = await fs.readFile(paths.cathedral.schematics, 'utf-8');
+    schematics = JSON.parse(raw);
+  } catch {
+    return {
+      ok: false,
+      runId,
+      stage: 'find',
+      outputPaths: {},
+      costUsd: 0,
+      error: 'INPUT_VALIDATION_FAILED: cathedral schematics not found — cathedral must run before find',
+    };
+  }
 
-    for (const fid8 of fid8s) {
+  if (dryRun) {
+    // Derive deterministic stub fid8s from runId (not random)
+    // Use first 8 chars of sha256(runId + index)
+    const { createHash } = await import('node:crypto');
+    const stubFid8s = [0, 1].map(i =>
+      createHash('sha256').update(`${runId}-stub-${i}`).digest('hex').slice(0, 8)
+    );
+
+    // Write stubs with cathedral provenance
+    const outputPaths: Record<string, string> = {};
+    for (const fid8 of stubFid8s) {
       const rawPath = paths.find.raw(fid8);
       const mergedPath = paths.find.merged(fid8);
       const convergencePath = paths.find.convergence(fid8);
@@ -39,10 +60,12 @@ export async function runFind(opts: {
       await fs.mkdir(path.dirname(mergedPath), { recursive: true });
       await fs.mkdir(path.dirname(convergencePath), { recursive: true });
 
-      const stubFinding = {
+      const finding = {
         fid8,
         run_id: runId,
-        severity: 'medium',
+        stage: 'find',
+        cathedral_run_id: schematics.run_id,
+        severity: 'medium' as const,
         category: 'quality',
         title: `Stub finding ${fid8}`,
         description: 'Dry-run stub finding for testing.',
@@ -52,11 +75,11 @@ export async function runFind(opts: {
         generated_at: new Date().toISOString(),
       };
 
-      await fs.writeFile(rawPath, JSON.stringify(stubFinding, null, 2), 'utf-8');
-      await fs.writeFile(mergedPath, JSON.stringify({ ...stubFinding, merged: true }, null, 2), 'utf-8');
+      await fs.writeFile(rawPath, JSON.stringify(finding, null, 2), 'utf-8');
+      await fs.writeFile(mergedPath, JSON.stringify({ ...finding, merged: true }, null, 2), 'utf-8');
       await fs.writeFile(
         convergencePath,
-        JSON.stringify({ ...stubFinding, convergence_status: 'converged', vote_count: 3 }, null, 2),
+        JSON.stringify({ ...finding, convergence_status: 'converged', vote_count: 3 }, null, 2),
         'utf-8',
       );
 
@@ -65,15 +88,16 @@ export async function runFind(opts: {
       outputPaths[`convergence_${fid8}`] = convergencePath;
     }
 
-    // Write convergence matrix
-    await fs.mkdir(path.dirname(paths.find.convergenceMatrix), { recursive: true });
-    const matrix = {
+    // convergence matrix
+    const matrixPath = paths.find.convergenceMatrix;
+    await fs.mkdir(path.dirname(matrixPath), { recursive: true });
+    await fs.writeFile(matrixPath, JSON.stringify({
       run_id: runId,
-      findings: fid8s.map((fid8) => ({ fid8, status: 'converged' })),
+      cathedral_run_id: schematics.run_id,
+      findings: stubFid8s.map(fid8 => ({ fid8, status: 'converged' })),
       generated_at: new Date().toISOString(),
-    };
-    await fs.writeFile(paths.find.convergenceMatrix, JSON.stringify(matrix, null, 2), 'utf-8');
-    outputPaths['convergence_matrix'] = paths.find.convergenceMatrix;
+    }, null, 2), 'utf-8');
+    outputPaths['convergence_matrix'] = matrixPath;
 
     await spine.emit({
       event_type: 'UNIT_COMPLETE',
@@ -92,20 +116,8 @@ export async function runFind(opts: {
     };
   }
 
-  // Real mode — read cathedral schematics first
-  let schematicsContent: string;
-  try {
-    schematicsContent = await fs.readFile(paths.cathedral.schematics, 'utf-8');
-  } catch {
-    return {
-      ok: false,
-      runId,
-      stage: 'find',
-      outputPaths: {},
-      costUsd: 0,
-      error: 'INPUT_VALIDATION_FAILED: cathedral schematics not found',
-    };
-  }
+  // Real mode — use already-read schematics
+  const schematicsContent = JSON.stringify(schematics, null, 2);
 
   const roleSkill = await loadRoleSkill('find');
 
