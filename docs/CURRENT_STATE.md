@@ -55,3 +55,27 @@ Last updated: 2026-03-12
 - [ ] Real SDK run (not dryRun) — untested against actual target
 - [ ] HumanGate approval flow end-to-end
 - [ ] Dashboard with live run in progress
+
+## ⚠️ Loop Implementation Audit — BLOCKING (added 2026-03-12 by monitor)
+
+See `docs/LOOP-AUDIT.md` for full decisions. Summary:
+
+### IMPLEMENT cycle retry — CANONICAL, not wired
+- `cycle` is hardcoded to `1` in `src/stages/implement/index.ts`
+- `writeIFR()` exists but is only called on exit, never on retry
+- Required: loop with maxCycles=3, increment cycle on failure, retry
+- Proof required: run artifact showing `{fid8}.2.diff` or `{fid8}.2.json` on disk
+
+### FIND multi-agent convergence — CANONICAL, not wired
+- Single agent fires, raw/merged/convergence are written from one pass with identical data
+- Required: N parallel find agents (N=level), dedup pass → merged, vote pass → convergence
+- Proof required: `vote_count ≥ 2` in convergence files, raw ≠ merged ≠ convergence content
+
+### PREDICT stenography ghost path — remove it
+- `paths.predict.stenography()` in paths.ts, never written, not in contracts
+- Required: delete from paths.ts, add deferral comment in predict/index.ts
+
+### Contract drift — 4 mismatches
+- Undeclared on disk: `implement/facts`, `implement/tests`, `finalguard/notes`
+- Declared but never written: `cathedral/briefings`
+- Required: either add to ARTIFACT_CONTRACTS or delete from disk/code
