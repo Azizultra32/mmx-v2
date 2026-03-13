@@ -179,6 +179,8 @@ export async function runCathedral(opts: {
     runCard,
     assembledPrompt: assembled.prompt!,
     payload,
+    onOutput: (text) => process.stdout.write(text),
+    cwd: targetPath,
   });
 
   if (!result.ok) {

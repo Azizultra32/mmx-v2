@@ -38,6 +38,7 @@ export async function runWithSDK(opts: {
   assembledPrompt: string;  // the 4-block envelope systemPrompt
   payload: string;           // user prompt / payload
   onOutput?: (text: string) => void;
+  cwd?: string;              // working directory for the agent subprocess (should be targetPath)
 }): Promise<RunnerResult> {
   try {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
@@ -55,6 +56,13 @@ export async function runWithSDK(opts: {
         model: promptOpts.model,
         systemPrompt: promptOpts.systemPrompt,
         maxTurns: promptOpts.maxTurns,
+        // Set cwd to target path so the agent subprocess reads the right repo
+        // and has write access to its .mmx workspace.
+        ...(opts.cwd ? { cwd: opts.cwd } : {}),
+        // The agent must write to .mmx/ workspace (gitignored). Bypass
+        // permission prompts so it can write output artifacts without blocking.
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
       },
     });
 

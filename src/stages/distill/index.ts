@@ -205,6 +205,41 @@ export async function runDistill(opts: {
     };
   }
 
+  // Post-process: read verdict files the LLM wrote, create formal approved packets.
+  // The LLM writes distill/verdicts/<fid8>.json — code converts them to approved packets.
+  const outputPaths: Record<string, string> = {};
+  for (const fid8 of fid8s) {
+    const verdictPath = paths.distill.verdict(fid8);
+    let verdict: { suggested_action?: string; supports?: boolean; weakens?: boolean } = {};
+    try {
+      const raw = await fs.readFile(verdictPath, 'utf-8');
+      verdict = JSON.parse(raw);
+    } catch {
+      // Verdict file not written by LLM — skip this fid8
+      continue;
+    }
+
+    const approved = verdict.suggested_action === 'approve' ||
+      (verdict.supports === true && verdict.weakens !== true);
+
+    const approvedPath = paths.distill.approved(fid8);
+    await fs.mkdir(path.dirname(approvedPath), { recursive: true });
+    await fs.writeFile(
+      approvedPath,
+      JSON.stringify({
+        fid8,
+        run_id: runId,
+        stage: 'distill',
+        verdict: approved ? 'approve' : 'reject',
+        approved,
+        packet_type: 'distill_approved',
+        generated_at: new Date().toISOString(),
+      }, null, 2),
+      'utf-8',
+    );
+    outputPaths[`approved_${fid8}`] = approvedPath;
+  }
+
   await spine.emit({
     event_type: 'UNIT_COMPLETE',
     run_id: runId,
@@ -217,7 +252,7 @@ export async function runDistill(opts: {
     ok: true,
     runId,
     stage: 'distill',
-    outputPaths: {},
+    outputPaths,
     costUsd: result.costUsd,
   };
 }
