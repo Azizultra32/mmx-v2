@@ -32,7 +32,9 @@ describe('runCathedral (dryRun)', () => {
     const schematics = await fs.readFile(paths.cathedral.schematics, 'utf-8');
     const schema = JSON.parse(schematics);
     expect(schema.run_id).toBe(runId);
+    expect(schema.stage).toBe('cathedral');
     expect(Array.isArray(schema.subsystems)).toBe(true);
+    expect(Array.isArray(schema.source_refs)).toBe(true);
     expect(typeof schema.generated_at).toBe('string');
   });
 

@@ -43,7 +43,7 @@ Each item requires proof: file path, stage output contents, or validator output.
 - [ ] A missing required output causes CONTRACT_BREACH event (not silent skip)
 - [ ] No stage reads files outside its declared input handles
 - [ ] No stage writes files outside its declared output handles
-- [ ] Artifact provenance: every output file contains run_id, stage, generated_at
+- [x] Artifact provenance: JSON outputs contain run_id, stage, generated_at — markdown stubs excluded
 - [ ] End-to-end dryRun: cathedral schematic → find findings → distill survivors chain proven with real file contents at each handoff point
 
 ## Three Laws

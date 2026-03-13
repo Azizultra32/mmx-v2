@@ -7,6 +7,36 @@ import { loadRoleSkill } from '../../runner/role-loader.js';
 import { assemblePrompt } from '../../enforcement/prompt-assembler.js';
 import { runWithSDK } from '../../runner/sdk-runner.js';
 
+async function scanSourceFiles(targetPath: string): Promise<string[]> {
+  const results: string[] = [];
+  const INCLUDE_EXTS = new Set(['.ts', '.js', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.cs', '.rb', '.php', '.swift', '.kt']);
+  const EXCLUDE_DIRS = new Set(['node_modules', '.git', '.mmx', '.metamatrix', 'dist', 'build', '__pycache__', '.venv', 'vendor']);
+
+  async function walk(dir: string): Promise<void> {
+    let entries: import('fs').Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (!EXCLUDE_DIRS.has(entry.name)) {
+          await walk(path.join(dir, entry.name));
+        }
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (INCLUDE_EXTS.has(ext)) {
+          results.push(path.relative(targetPath, path.join(dir, entry.name)));
+        }
+      }
+    }
+  }
+
+  await walk(targetPath);
+  return results.sort();
+}
+
 export async function runCathedral(opts: {
   targetPath: string;
   runId: string;
@@ -26,11 +56,14 @@ export async function runCathedral(opts: {
   });
 
   if (dryRun) {
+    // Scan target for source files (real filesystem scan, not stub)
+    const sourceRefs = await scanSourceFiles(targetPath);
+
     // Write brief.md
     await fs.mkdir(path.dirname(paths.cathedral.brief), { recursive: true });
     await fs.writeFile(
       paths.cathedral.brief,
-      `# Cathedral Brief\n\nrun_id: ${runId}\ntarget: ${targetPath}\n`,
+      `# Cathedral Brief\n\nrun_id: ${runId}\ntarget: ${targetPath}\nfiles: ${sourceRefs.length}\n`,
       'utf-8',
     );
 
@@ -41,8 +74,9 @@ export async function runCathedral(opts: {
       JSON.stringify(
         {
           run_id: runId,
+          stage: 'cathedral',
           subsystems: [],
-          source_refs: [],
+          source_refs: sourceRefs,
           generated_at: new Date().toISOString(),
         },
         null,
@@ -59,16 +93,7 @@ export async function runCathedral(opts: {
       role: 'cathedral',
     });
 
-    return {
-      ok: true,
-      runId,
-      stage: 'cathedral',
-      outputPaths: {
-        brief: paths.cathedral.brief,
-        schematics: paths.cathedral.schematics,
-      },
-      costUsd: 0,
-    };
+    return { ok: true, runId, stage: 'cathedral', outputPaths: { brief: paths.cathedral.brief, schematics: paths.cathedral.schematics }, costUsd: 0 };
   }
 
   // Real mode

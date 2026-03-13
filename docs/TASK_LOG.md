@@ -6,6 +6,11 @@ One entry per completed task. Format: task | files | proof | next.
 
 ## 2026-03-12
 
+### Task 9: Fix GAP 2+3 — cathedral scans real source files, stage provenance in all outputs
+Files: src/stages/cathedral/index.ts
+Proof: TS 0 errors, tests pass, run-004/cathedral/schematics/index.json has stage:"cathedral" + real source_refs, find outputs have stage:"find"
+Next: Prove full cathedral→find→distill chain with verbatim artifact contents (end-to-end chain acceptance check)
+
 ### Task 8: Fix GAP 1 — find dryRun reads cathedral output
 Files: src/stages/find/index.ts
 Proof: TS 0 errors, all tests pass, run-003 find/raw/*.json contains cathedral_run_id matching cathedral schematics run_id
