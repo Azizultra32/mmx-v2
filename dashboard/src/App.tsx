@@ -1,7 +1,7 @@
 import './App.css';
 import { DashboardProvider } from './context/DashboardContext';
 import { Header } from './components/Header';
-import { LaunchBar } from './components/LaunchBar';
+import { TargetBar } from './components/TargetBar';
 import { StageSpine } from './components/StageSpine';
 import { EventFeed } from './components/EventFeed';
 import { RunHistory } from './components/RunHistory';
@@ -12,7 +12,7 @@ function App() {
     <DashboardProvider>
       <div className="app">
         <Header />
-        <LaunchBar />
+        <TargetBar />
         <div className="main">
           <div className="sidebar">
             <RunHistory />

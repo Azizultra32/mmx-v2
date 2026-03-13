@@ -13,11 +13,24 @@ export interface RunState {
   error: string | null;
 }
 
+export interface TargetInfo {
+  target_id: string;
+  display_name: string;
+  source_type: 'demo' | 'github' | 'local';
+  source_path: string;
+  created_at: string;
+  run_count?: number;
+}
+
 interface DashboardContextValue {
   runs: RunState[];
   selectedRunId: string | null;
   setSelectedRunId: (id: string | null) => void;
   selectedRun: RunState | null;
+  targets: TargetInfo[];
+  selectedTarget: TargetInfo | null;
+  setSelectedTarget: (t: TargetInfo | null) => void;
+  refreshTargets: () => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextValue>({
@@ -25,11 +38,37 @@ const DashboardContext = createContext<DashboardContextValue>({
   selectedRunId: null,
   setSelectedRunId: () => {},
   selectedRun: null,
+  targets: [],
+  selectedTarget: null,
+  setSelectedTarget: () => {},
+  refreshTargets: async () => {},
 });
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [runs, setRuns] = useState<RunState[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [targets, setTargets] = useState<TargetInfo[]>([]);
+  const [selectedTarget, setSelectedTarget] = useState<TargetInfo | null>(null);
+
+  const fetchTargets = async () => {
+    try {
+      const res = await fetch('/api/targets');
+      const data = await res.json() as { targets?: TargetInfo[] };
+      const list = data.targets ?? [];
+      setTargets(list);
+      // Auto-select first target if none selected
+      setSelectedTarget(prev => {
+        if (prev) {
+          // Keep existing selection if still present
+          const still = list.find(t => t.target_id === prev.target_id);
+          return still ?? (list[0] ?? null);
+        }
+        return list[0] ?? null;
+      });
+    } catch {
+      // server may not be up yet
+    }
+  };
 
   useEffect(() => {
     const fetchRuns = async () => {
@@ -47,15 +86,30 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchRuns();
-    const timer = setInterval(fetchRuns, 5000);
-    return () => clearInterval(timer);
+    fetchTargets();
+
+    const runsTimer = setInterval(fetchRuns, 5000);
+    const targetsTimer = setInterval(fetchTargets, 10000);
+    return () => {
+      clearInterval(runsTimer);
+      clearInterval(targetsTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedRun = runs.find(r => r.run_id === selectedRunId) ?? null;
 
   return (
-    <DashboardContext.Provider value={{ runs, selectedRunId, setSelectedRunId, selectedRun }}>
+    <DashboardContext.Provider value={{
+      runs,
+      selectedRunId,
+      setSelectedRunId,
+      selectedRun,
+      targets,
+      selectedTarget,
+      setSelectedTarget,
+      refreshTargets: fetchTargets,
+    }}>
       {children}
     </DashboardContext.Provider>
   );

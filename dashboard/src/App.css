@@ -111,3 +111,29 @@ body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono',
 
 /* ── Empty states ── */
 .empty-state { color: var(--muted); font-size: 12px; padding: 24px 16px; text-align: center; }
+
+/* ── Target Bar ── */
+.target-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+.target-bar-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+.target-bar-empty { color: var(--muted); font-size: 11px; font-style: italic; }
+.target-select { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; font-family: inherit; font-size: 12px; border-radius: 3px; outline: none; min-width: 200px; }
+.target-select:focus { border-color: var(--accent); }
+.target-btn-new { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-family: inherit; font-size: 11px; font-weight: 700; border-radius: 3px; cursor: pointer; letter-spacing: 0.05em; white-space: nowrap; }
+.target-btn-new:hover { background: rgba(59,130,246,0.1); }
+.target-bar-path { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; width: 480px; max-width: 90vw; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--text); }
+.modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.modal-close:hover { color: var(--text); }
+.modal-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.modal-tab { flex: 1; background: none; border: none; color: var(--muted); padding: 10px; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; border-bottom: 2px solid transparent; }
+.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.modal-tab:hover:not(.active) { color: var(--text); }
+.modal-body { padding: 16px; }
+.modal-desc { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+.modal-desc code { color: var(--text); background: var(--bg3); padding: 1px 4px; border-radius: 2px; }
+.modal-input-row { display: flex; gap: 8px; }

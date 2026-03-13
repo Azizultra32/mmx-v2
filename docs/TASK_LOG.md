@@ -25,3 +25,8 @@ Next: 4-surface model refactor (workspace rename, target.json, current.json, his
 Files: All of `src/` and `dashboard/`
 Proof: `git log --oneline` shows 30 commits, 164 tests, 0 TS errors
 Next: 4-surface model, target management, demo sandbox, artifact explorer
+
+### Task 3: Dashboard New Target UX
+Files: dashboard/src/components/TargetBar.tsx, NewTargetModal.tsx, context/DashboardContext.tsx, App.tsx, App.css
+Proof: frontend build zero errors, curl /api/targets returns targets, screenshot shows target selector
+Next: Artifact explorer per stage (click completed stage dot → see artifact content)
