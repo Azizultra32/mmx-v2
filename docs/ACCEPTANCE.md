@@ -30,6 +30,22 @@ Each item requires proof: file path, API response, run folder, screenshot, or te
 - [ ] Token counts shown if available from SDK
 - [ ] Any USD estimate labeled "ESTIMATE (not billed)"
 
+## Artifact Contract Acceptance
+
+Each item requires proof: file path, stage output contents, or validator output.
+
+- [ ] Cathedral writes `cathedral/schematics/index.json` before Find reads it
+- [ ] Find reads only declared inputs from cathedral output, writes to `find/raw/<fid8>.json`
+- [ ] Distill reads only `find/` outputs, writes to `distill/approved/<fid8>.packet.json`
+- [ ] Each stage's input handles are declared before execution starts
+- [ ] Each stage's output handles are declared before execution starts
+- [ ] A missing required input causes CONTRACT_BREACH event (not silent skip)
+- [ ] A missing required output causes CONTRACT_BREACH event (not silent skip)
+- [ ] No stage reads files outside its declared input handles
+- [ ] No stage writes files outside its declared output handles
+- [ ] Artifact provenance: every output file contains run_id, stage, generated_at
+- [ ] End-to-end dryRun: cathedral schematic → find findings → distill survivors chain proven with real file contents at each handoff point
+
 ## Three Laws
 - [ ] `preflight` fails with ENGINE_EQUALS_TARGET when engine path = target path
 - [ ] `preflight` fails with TARGET_DIRTY when target has uncommitted changes
