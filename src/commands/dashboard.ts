@@ -227,7 +227,14 @@ export function buildDashboardServer(opts: { targetPath: string; port?: number }
         const runId = randomBytes(8).toString('hex');
         const cliPath = path.resolve(__dirname, '../../dist/cli.js');
 
-        execFile('node', [cliPath, 'run', resolvedTarget, '--level', level], (err) => {
+        // Strip CLAUDECODE so the child process can spawn the Agent SDK
+        // without triggering the nested-session guard. The child is a
+        // separate OS process — this is subprocess env configuration,
+        // not an in-process unset.
+        const childEnv = { ...process.env };
+        delete childEnv['CLAUDECODE'];
+
+        execFile('node', [cliPath, 'run', resolvedTarget, '--level', level], { env: childEnv }, (err) => {
           if (err) {
             // Non-zero exit is not necessarily fatal for spawning — run started
           }

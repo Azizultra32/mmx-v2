@@ -19,6 +19,7 @@ Source: MMX.txt (canonical spec)
 12. Cost truth ≠ billable API pricing.
 13. Never claim launch success unless a real run folder and state file exist.
 14. Never claim "done" without proof.
+15. Agent SDK CANNOT run inside an active Claude Code session (CLAUDECODE env var blocks nested spawns). The production runtime path is: start dashboard from a plain terminal → dashboard spawns runs with CLAUDECODE stripped from child env. For direct CLI runs: use `scripts/run-external.sh` from a plain terminal outside Claude Code.
 
 ## The 4 Surfaces
 
