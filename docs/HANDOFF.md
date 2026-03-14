@@ -14,64 +14,37 @@ Minimal restart context for next session or next agent.
 MMX v2 engine is fully built and proven on real targets.
 
 **Engine:** `~/mmx-v2` — all 8 stages working, real SDK runs proven
-**Last commit:** `8b3710d` — Three Laws fix (implement/finalguard workspace cwd)
+**Last commit:** `4f4f91f` — SDK cli.js path fix
 **Tests:** 171 passing, 0 TS errors
 **GitHub:** github.com/Azizultra32/mmx-v2
 
 **Target analyzed:** `~/aims-v2` (github.com/Azizultra32/aims-v2)
 - run-001: 10 findings, $18.89 — patches committed to aims-v2
-- run-002: 15 findings, $26.46 — patches in working tree, NOT committed
-  - aims-v2 working tree is currently DIRTY
-  - See CURRENT_STATE.md for which patches to apply/skip/reject
+- run-002: 15 findings, $26.46 — 6 patches committed to branch mmx-level2-rate-limiting
+- rate-limit.ts: Upstash Redis rate limiter implemented, awaiting Vercel env vars + merge
 
 ## Immediate Next Task
 
-**Build `--focus` flag in mmx-v2.**
+**Verify full pipeline with run-005.**
 
-Task:
-Add `--focus <topic>` CLI flag to `dist/cli.js run` command.
-When set, seed the find stage prompt with the focus topic so the agent
-investigates that area deeply instead of general scanning.
+Command:
+```
+env -u CLAUDECODE node dist/cli.js run ~/aims-v2 --level 2 --focus "serverless rate limiting"
+```
 
-Files to modify:
-- `src/cli.ts` — add --focus option to parseArgs
-- `src/commands/run.ts` — pass focusTopic to runFind
-- `src/stages/find/index.ts` — inject focusTopic into real-mode payload
+Must complete all 8 stages including FinalGuard (parallel). Previous runs failed at FinalGuard due to SDK cli.js resolution bug — now fixed in 4f4f91f.
 
-Preserve:
-- All existing behavior when --focus is not set
-- 171 tests passing
-- 0 TS errors
-
-Done when:
-- `node dist/cli.js run ~/aims-v2 --level 2 --focus "serverless rate limiting architecture"` executes
-- Find stage prompt contains the focus topic
-- Proof: run output + find/raw artifacts show rate-limiting-focused findings
-
-Then:
-Run level 2 focused pass on `~/aims-v2` targeting the serverless rate limiter gap.
+**After run-005 passes:**
+1. Review FinalGuard verdicts on rate-limit patches
+2. If approved: merge mmx-level2-rate-limiting → main in aims-v2
+3. Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in Vercel
+4. Deploy
 
 ## Critical Context
-
-- Engine: `~/mmx-v2/` — never use as target
-- Workspace: `<target>/.mmx/` (was .metamatrix/, renamed)
-- Run IDs: sequential `run-001`, `run-002`...
-- SDK: Agent SDK / Claude Max subscription — NOT real API billing
-- CLAUDECODE: must be unset for SDK runs: `env -u CLAUDECODE node dist/cli.js run ...`
-- Dashboard: `node dist/cli.js dashboard --repo <target> --port 4242`
+- Engine: ~/mmx-v2 (main, commit 4f4f91f)
+- Target: ~/aims-v2 (branch: mmx-level2-rate-limiting)
+- All runs: env -u CLAUDECODE node /Users/ali/mmx-v2/dist/cli.js run ...
 - Three Laws: target must have clean git status before each run
-
-## aims-v2 Patch Situation
-
-Working tree has run-002 patches applied directly to source (Three Laws violation,
-now fixed in engine but run-002 already ran with old code).
-
-DO NOT apply:
-- e1f2a3b4 (removes active requireAuth — security regression)
-- c3d4e5f6 (incomplete DB rate limiter — use --focus level 2 instead)
-
-APPLY when clean:
-- a1b2c3d4, b2c3d4e5, c5d6e7f8, c9d0e1f2, d0e1f2a3, f6a7b8c9 (FinalGuard approved)
 
 ## Proof Standard
 

@@ -100,3 +100,14 @@ Files: ~/aims-v2/.mmx/runs/run-002/
 Proof: exit 0, $26.46, 15 findings, 6 approved / 6 needs-revision / 2 rejected
 NOTE: run-002 still wrote to source files (fix compiled after run started)
 Next: Build --focus flag, run level-2 targeted pass on serverless rate limiting
+
+### Distributed rate limiter — aims-v2 (2026-03-14)
+Files: src/lib/rate-limit.ts, src/lib/api-helpers.ts, 6 route files, rate-limit.test.ts
+Proof: @upstash packages installed, TS clean, all await calls added
+Next: Set UPSTASH env vars in Vercel, merge to main after run-005 FinalGuard verification
+
+### SDK cli.js path fix (2026-03-14)
+Files: src/runner/sdk-runner.ts
+Proof: 4f4f91f pushed, resolves SDK_CLI_PATH from import.meta.url
+Fix: FinalGuard/Implement failed when cwd=workspace because SDK couldn't find cli.js
+Next: run-005 to verify full pipeline with parallel stages
