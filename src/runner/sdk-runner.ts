@@ -1,15 +1,4 @@
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 import type { RunCard, RunnerResult } from '../core/types.js';
-
-// Resolve the SDK's bundled cli.js — needed when cwd is set to a workspace
-// directory, as the SDK resolves cli.js relative to cwd by default.
-const _require = createRequire(import.meta.url);
-const SDK_CLI_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../node_modules/@anthropic-ai/claude-agent-sdk/cli.js',
-);
 
 export const COMPLETION_SIGNAL = 'AUTONOMOUS_COMPLETE';
 export const DEFAULT_MODEL = 'claude-opus-4-6';
@@ -77,9 +66,6 @@ export async function runWithSDK(opts: {
         // permission prompts so it can write output artifacts without blocking.
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
-        // Point to the SDK's own bundled cli.js — needed when cwd is set to
-        // a workspace directory, as the SDK resolves cli.js relative to cwd.
-        pathToClaudeCodeExecutable: SDK_CLI_PATH,
       },
     });
 

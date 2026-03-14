@@ -175,7 +175,8 @@ export async function runFinalGuard(opts: {
         `Write receipt HTML to: ${receiptPath}`,
         `DO NOT modify any source files. Read only. Write only to declared output paths.`,
       ].join('\n'),
-      cwd: path.dirname(verdictPath),
+      // No cwd override — runs from engine dir so SDK can find its cli.js.
+      // All paths in payload are absolute so cwd doesn't affect file access.
     });
 
     return result.ok

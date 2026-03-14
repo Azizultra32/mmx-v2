@@ -246,7 +246,8 @@ export async function runImplement(opts: {
         `DO NOT modify any source file in ${targetPath} directly.`,
         `DO NOT write files anywhere except the declared output paths above.`,
       ].join('\n'),
-      cwd: stageWorkspace,
+      // No cwd override — runs from engine dir so SDK can find its cli.js.
+      // All payload paths are absolute. Prompt explicitly forbids source writes.
     });
 
     if (!result.ok) {
