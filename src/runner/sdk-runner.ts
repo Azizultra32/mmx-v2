@@ -66,6 +66,9 @@ export async function runWithSDK(opts: {
         // permission prompts so it can write output artifacts without blocking.
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
+        // Explicit path to claude binary — needed when cwd is set to a
+        // workspace directory, as the SDK may fail to find the executable.
+        pathToClaudeCodeExecutable: '/Users/ali/.local/bin/claude',
       },
     });
 
