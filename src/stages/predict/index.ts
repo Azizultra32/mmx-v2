@@ -138,9 +138,8 @@ export async function runPredict(opts: {
     loadRoleSkill('predict-simverify'),
   ]);
 
-  let totalCost = 0;
-
-  for (const fid8 of fid8s) {
+  // Parallel: all fid8s run concurrently — each is independent, unique output paths
+  const fid8Results = await Promise.all(fid8s.map(async (fid8) => {
     const subroles = ['da', 'fsm', 'g5', 'simverify'] as const;
 
     const subroleResults = await Promise.all(
@@ -175,12 +174,8 @@ export async function runPredict(opts: {
       }),
     );
 
-    for (const r of subroleResults) {
-      totalCost += r.costUsd;
-      if (!r.ok) {
-        return { ok: false, runId, stage: 'predict', outputPaths: {}, costUsd: totalCost, error: r.error };
-      }
-    }
+    const failed = subroleResults.find(r => !r.ok);
+    if (failed) return { ok: false as const, fid8, costUsd: subroleResults.reduce((s, r) => s + r.costUsd, 0), error: failed.error };
 
     // Write approved packet
     const approvedPath = paths.predict.approved(fid8);
@@ -190,7 +185,13 @@ export async function runPredict(opts: {
       JSON.stringify({ fid8, run_id: runId, stage: 'predict', packet_type: 'predict_approved', generated_at: new Date().toISOString() }, null, 2),
       'utf-8',
     );
-  }
+
+    return { ok: true as const, fid8, costUsd: subroleResults.reduce((s, r) => s + r.costUsd, 0) };
+  }));
+
+  const totalCost = fid8Results.reduce((s, r) => s + r.costUsd, 0);
+  const failed = fid8Results.find(r => !r.ok);
+  if (failed) return { ok: false, runId, stage: 'predict', outputPaths: {}, costUsd: totalCost, error: failed.error };
 
   await spine.emit({
     event_type: 'UNIT_COMPLETE',

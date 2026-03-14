@@ -122,9 +122,9 @@ export async function runPropose(opts: {
 
   // Real mode
   const roleSkill = await loadRoleSkill('propose-architect');
-  let totalCost = 0;
 
-  for (const fid8 of fid8s) {
+  // Parallel: all fid8s run concurrently — each writes to unique paths
+  const fid8Results = await Promise.all(fid8s.map(async (fid8) => {
     const branch = 'a';
     const proposalPath = paths.propose.proposal(fid8, branch);
     const approvedPath = paths.propose.approved(fid8, branch);
@@ -152,9 +152,7 @@ export async function runPropose(opts: {
       tokenBudget: 4650,
     });
 
-    if (!assembled.ok) {
-      return { ok: false, runId, stage: 'propose', outputPaths: {}, costUsd: totalCost, error: assembled.reason };
-    }
+    if (!assembled.ok) return { ok: false as const, costUsd: 0, error: assembled.reason };
 
     const result = await runWithSDK({
       runCard,
@@ -162,10 +160,7 @@ export async function runPropose(opts: {
       payload: `Design proposal for finding ${fid8}`,
     });
 
-    totalCost += result.costUsd;
-    if (!result.ok) {
-      return { ok: false, runId, stage: 'propose', outputPaths: {}, costUsd: totalCost, error: result.error };
-    }
+    if (!result.ok) return { ok: false as const, costUsd: result.costUsd, error: result.error };
 
     // Write approved packet
     await fs.mkdir(path.dirname(approvedPath), { recursive: true });
@@ -174,7 +169,13 @@ export async function runPropose(opts: {
       JSON.stringify({ fid8, branch, run_id: runId, stage: 'propose', packet_type: 'propose_approved', generated_at: new Date().toISOString() }, null, 2),
       'utf-8',
     );
-  }
+
+    return { ok: true as const, costUsd: result.costUsd };
+  }));
+
+  const totalCost = fid8Results.reduce((s, r) => s + r.costUsd, 0);
+  const failed = fid8Results.find(r => !r.ok);
+  if (failed) return { ok: false, runId, stage: 'propose', outputPaths: {}, costUsd: totalCost, error: failed.error };
 
   await spine.emit({
     event_type: 'UNIT_COMPLETE',

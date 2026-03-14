@@ -128,9 +128,9 @@ export async function runFinalGuard(opts: {
 
   // Real mode
   const roleSkill = await loadRoleSkill('finalguard');
-  let totalCost = 0;
 
-  for (const fid8 of fid8s) {
+  // Parallel: all fid8s reviewed concurrently — each writes to unique workspace paths
+  const fid8Results = await Promise.all(fid8s.map(async (fid8) => {
     const verdictPath = paths.finalguard.verdict(fid8);
     const notesPath = paths.finalguard.notes(fid8);
     const receiptPath = paths.finalguard.receipt(fid8);
@@ -162,9 +162,7 @@ export async function runFinalGuard(opts: {
       tokenBudget: 4650,
     });
 
-    if (!assembled.ok) {
-      return { ok: false, runId, stage: 'finalguard', outputPaths: {}, costUsd: totalCost, error: assembled.reason };
-    }
+    if (!assembled.ok) return { ok: false as const, costUsd: 0, error: assembled.reason };
 
     const result = await runWithSDK({
       runCard,
@@ -180,11 +178,14 @@ export async function runFinalGuard(opts: {
       cwd: path.dirname(verdictPath),
     });
 
-    totalCost += result.costUsd;
-    if (!result.ok) {
-      return { ok: false, runId, stage: 'finalguard', outputPaths: {}, costUsd: totalCost, error: result.error };
-    }
-  }
+    return result.ok
+      ? { ok: true as const, costUsd: result.costUsd }
+      : { ok: false as const, costUsd: result.costUsd, error: result.error };
+  }));
+
+  const totalCost = fid8Results.reduce((s, r) => s + r.costUsd, 0);
+  const failed = fid8Results.find(r => !r.ok);
+  if (failed) return { ok: false, runId, stage: 'finalguard', outputPaths: {}, costUsd: totalCost, error: failed.error };
 
   await spine.emit({
     event_type: 'UNIT_COMPLETE',

@@ -187,9 +187,9 @@ export async function runImplement(opts: {
 
   // Real mode
   const roleSkill = await loadRoleSkill('implement-holistic');
-  let totalCost = 0;
 
-  for (const fid8 of fid8s) {
+  // Parallel: all fid8s run concurrently — each writes to unique workspace paths
+  const fid8Results = await Promise.all(fid8s.map(async (fid8) => {
     const cycle = 1;
     const patchPath = paths.implement.patch(fid8, cycle);
     const testsPath = paths.implement.tests(fid8, cycle);
@@ -225,12 +225,11 @@ export async function runImplement(opts: {
 
     if (!assembled.ok) {
       await writeIFR(paths, fid8, runId, cycle, assembled.reason ?? 'PROMPT_BUDGET_EXCEEDED', 'Reduce prompt size or increase token budget.');
-      return { ok: false, runId, stage: 'implement', outputPaths: {}, costUsd: totalCost, error: assembled.reason };
+      return { ok: false as const, costUsd: 0, error: assembled.reason };
     }
 
     // cwd = stage output dir so agent defaults to writing in workspace.
-    // Source files are read-only — agent must write ONLY unified diffs to
-    // the declared patch path. It must NOT modify source files directly.
+    // Source files are read-only — agent must write ONLY unified diffs.
     const stageWorkspace = path.dirname(patchPath);
     await fs.mkdir(stageWorkspace, { recursive: true });
 
@@ -250,11 +249,9 @@ export async function runImplement(opts: {
       cwd: stageWorkspace,
     });
 
-    totalCost += result.costUsd;
-
     if (!result.ok) {
       await writeIFR(paths, fid8, runId, cycle, result.error ?? 'SDK_ERROR', 'Retry with reduced context or manual implementation.');
-      return { ok: false, runId, stage: 'implement', outputPaths: {}, costUsd: totalCost, error: result.error };
+      return { ok: false as const, costUsd: result.costUsd, error: result.error };
     }
 
     // Write approved packet
@@ -264,7 +261,13 @@ export async function runImplement(opts: {
       JSON.stringify({ fid8, run_id: runId, stage: 'implement', packet_type: 'implement_approved', cycle, generated_at: new Date().toISOString() }, null, 2),
       'utf-8',
     );
-  }
+
+    return { ok: true as const, costUsd: result.costUsd };
+  }));
+
+  const totalCost = fid8Results.reduce((s, r) => s + r.costUsd, 0);
+  const failed = fid8Results.find(r => !r.ok);
+  if (failed) return { ok: false, runId, stage: 'implement', outputPaths: {}, costUsd: totalCost, error: failed.error };
 
   await spine.emit({
     event_type: 'UNIT_COMPLETE',
