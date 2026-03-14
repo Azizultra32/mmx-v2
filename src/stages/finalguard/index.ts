@@ -169,7 +169,15 @@ export async function runFinalGuard(opts: {
     const result = await runWithSDK({
       runCard,
       assembledPrompt: assembled.prompt!,
-      payload: `Final review for finding ${fid8}`,
+      payload: [
+        `Final review for finding ${fid8}, run ${runId}.`,
+        `Read patch from: ${paths.implement.patch(fid8, 1)}`,
+        `Write verdict JSON to: ${verdictPath}`,
+        `Write notes markdown to: ${notesPath}`,
+        `Write receipt HTML to: ${receiptPath}`,
+        `DO NOT modify any source files. Read only. Write only to declared output paths.`,
+      ].join('\n'),
+      cwd: path.dirname(verdictPath),
     });
 
     totalCost += result.costUsd;

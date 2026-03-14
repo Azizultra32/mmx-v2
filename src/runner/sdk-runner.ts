@@ -38,7 +38,10 @@ export async function runWithSDK(opts: {
   assembledPrompt: string;  // the 4-block envelope systemPrompt
   payload: string;           // user prompt / payload
   onOutput?: (text: string) => void;
-  cwd?: string;              // working directory for the agent subprocess (should be targetPath)
+  cwd?: string;              // working directory for agent subprocess.
+                             // Read stages: set to targetPath (agent sees full repo).
+                             // Write stages (implement, finalguard): set to stage workspace dir
+                             // so agent defaults to writing in .mmx/, not source files.
 }): Promise<RunnerResult> {
   try {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');

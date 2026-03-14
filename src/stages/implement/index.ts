@@ -228,10 +228,26 @@ export async function runImplement(opts: {
       return { ok: false, runId, stage: 'implement', outputPaths: {}, costUsd: totalCost, error: assembled.reason };
     }
 
+    // cwd = stage output dir so agent defaults to writing in workspace.
+    // Source files are read-only — agent must write ONLY unified diffs to
+    // the declared patch path. It must NOT modify source files directly.
+    const stageWorkspace = path.dirname(patchPath);
+    await fs.mkdir(stageWorkspace, { recursive: true });
+
     const result = await runWithSDK({
       runCard,
       assembledPrompt: assembled.prompt!,
-      payload: `Implement fix for finding ${fid8}`,
+      payload: [
+        `Implement fix for finding ${fid8} in run ${runId}.`,
+        `Target repo: ${targetPath}`,
+        `Read source files from ${targetPath} to understand the code.`,
+        `Write ONLY a unified diff (git diff format) to: ${patchPath}`,
+        `Write ONLY test cases JSON to: ${testsPath}`,
+        `Write ONLY facts JSON to: ${factsPath}`,
+        `DO NOT modify any source file in ${targetPath} directly.`,
+        `DO NOT write files anywhere except the declared output paths above.`,
+      ].join('\n'),
+      cwd: stageWorkspace,
     });
 
     totalCost += result.costUsd;
