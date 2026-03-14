@@ -26,7 +26,8 @@ async function main(): Promise<void> {
       const levelStr = parseFlag('--level');
       const level = levelStr ? parseInt(levelStr, 10) : 1;
       const dryRun = hasFlag('--dry-run');
-      await run({ targetPath, level, dryRun });
+      const focus = parseFlag('--focus');
+      await run({ targetPath, level, dryRun, focus });
       break;
     }
 
@@ -57,7 +58,7 @@ async function main(): Promise<void> {
       console.log('MMX v2 — Contract-driven multi-agent orchestration engine');
       console.log('');
       console.log('Usage:');
-      console.log('  mmx-v2 run <targetPath> --level 1 [--dry-run]');
+      console.log('  mmx-v2 run <targetPath> --level 1 [--dry-run] [--focus "topic"]');
       console.log('  mmx-v2 preflight <targetPath>');
       console.log('  mmx-v2 dashboard --repo <targetPath> [--port 4242]');
       process.exit(command ? 1 : 0);

@@ -12,8 +12,9 @@ export async function runFind(opts: {
   runId: string;
   level: number;
   dryRun?: boolean;
+  focus?: string;  // Optional topic to focus analysis on
 }): Promise<StageResult> {
-  const { targetPath, runId, level, dryRun } = opts;
+  const { targetPath, runId, level, dryRun, focus } = opts;
   const paths = new Paths(targetPath, runId);
   const spine = new EventSpine(paths.events.activity);
 
@@ -167,7 +168,11 @@ export async function runFind(opts: {
     next_consumer: { role: 'distill-challenger', stage: 'distill' },
   };
 
-  const payload = `Analyze findings for: ${targetPath}\nLevel: ${level}\n\nSchematics:\n${schematicsContent}`;
+  const focusDirective = focus
+    ? `\n\nFOCUS DIRECTIVE: Investigate this specific area deeply: "${focus}"\nPrioritize findings in this area. Go deeper than a general scan would. Surface architectural gaps, incomplete implementations, and design flaws specifically related to: ${focus}`
+    : '';
+
+  const payload = `Analyze findings for: ${targetPath}\nLevel: ${level}\n\nSchematics:\n${schematicsContent}${focusDirective}`;
 
   const assembled = assemblePrompt({
     roleSkill,

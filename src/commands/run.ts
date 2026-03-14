@@ -18,6 +18,7 @@ export interface RunOptions {
   targetPath: string;
   level?: number;
   dryRun?: boolean;
+  focus?: string;  // Optional topic to focus the find stage on (e.g. "serverless rate limiting")
 }
 
 async function nextRunId(targetPath: string): Promise<string> {
@@ -33,7 +34,7 @@ async function nextRunId(targetPath: string): Promise<string> {
 }
 
 export async function run(opts: RunOptions): Promise<void> {
-  const { targetPath, level = 1, dryRun = false } = opts;
+  const { targetPath, level = 1, dryRun = false, focus } = opts;
 
   // Enforce Three Laws
   await enforceLaws({
@@ -76,6 +77,7 @@ export async function run(opts: RunOptions): Promise<void> {
   console.log(`[MMX] Target: ${targetPath}`);
   console.log(`[MMX] Level: ${level}`);
   console.log(`[MMX] DryRun: ${dryRun}`);
+  if (focus) console.log(`[MMX] Focus: ${focus}`);
 
   const stages: Array<{
     name: string;
@@ -87,7 +89,7 @@ export async function run(opts: RunOptions): Promise<void> {
     },
     {
       name: 'find',
-      fn: () => runFind({ targetPath, runId, level, dryRun }),
+      fn: () => runFind({ targetPath, runId, level, dryRun, focus }),
     },
     {
       name: 'distill',
