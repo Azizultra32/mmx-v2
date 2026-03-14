@@ -1,81 +1,68 @@
 # MMX v2 — CURRENT STATE
-Last updated: 2026-03-12
+Last updated: 2026-03-14
 
-## What Works
+## What Works (Proven)
 
-### Engine
-- [x] Engine in `~/mmx-v2/` — correct separation
-- [x] Three Laws enforcement (`src/core/three-laws.ts`) — execFile, no shell injection
-- [x] Agent SDK runner (`src/runner/sdk-runner.ts`) — Max subscription, no apiKey
-- [x] Daemon (hang detector, retry, heartbeat)
-- [x] Full 8-stage pipeline in dryRun mode
-- [x] 164 tests passing, 0 TypeScript errors
-- [x] Dashboard HTTP server with SSE events
-- [x] React dashboard UI (dark theme, stage dots, LaunchBar, HumanGate panel)
+### Engine (~/mmx-v2)
+- [x] 4-surface model: `.mmx/` workspace, `target.json`, `current.json`, `history.json`
+- [x] Sequential run IDs: `run-001`, `run-002`...
+- [x] Three Laws enforcement (execFile, no shell injection)
+- [x] Agent SDK runner — Claude Max subscription, no API key, `cwd` + `bypassPermissions`
+- [x] Full 8-stage real SDK pipeline proven end-to-end
+- [x] Cathedral scans real source files, find reads cathedral, distill reads find
+- [x] Distill post-processes LLM verdicts into approved packets
+- [x] Demo sandbox generator with 6 buggy TS files
+- [x] Dashboard target-first UI (TargetSelector + NewTargetModal)
+- [x] External runner: `scripts/run-external.sh` (strips CLAUDECODE)
+- [x] Dashboard spawn strips CLAUDECODE from child env
+- [x] 171 tests passing, 0 TypeScript errors
+- [x] Implement + FinalGuard use workspace cwd (Three Laws fix)
 
-### Workspace
-- [x] Workspace written to `<target>/.mmx/runs/<runId>/` ✓
-- [x] `Paths` class provides all artifact paths per stage (`src/core/paths.ts`)
-- [x] `RunRegistry` writes run state to `runs/<runId>/registry/run.json` (`src/state/machine.ts`)
-- [x] `EventSpine` appends to `runs/<runId>/events/activity.jsonl`
-
-### Dashboard
-- [x] POST /api/run spawns a CLI run (but reads body only partially)
-- [x] GET /api/runs returns runs from `.mmx/runs/`
-- [x] GET /api/events SSE stream from activity.jsonl
-- [x] POST /api/run/:id/approve writes human-approval.json
+### Real runs proven
+- run-012 on ~/mmx-sandbox: $14.46, 167 artifacts, real SQL injection patch written
+- run-001 on ~/aims-v2: 10 findings, $18.89, 6 patches approved by FinalGuard
+- run-002 on ~/aims-v2: 15 findings, $26.46, 6 approved / 6 needs-revision / 2 rejected
 
 ## What Is Broken / Missing
 
-### 4-Surface Model Not Complete
-- [x] Workspace dir is `.mmx/` ✓
-- [x] `target.json`, `current.json`, `history.json` added ✓
-- [x] Run IDs are `run-001`, `run-002` (sequential) ✓
+### --focus flag (NEXT BUILD TASK)
+- [ ] No targeted level-2 pass on specific finding
+- [ ] Build: `dist/cli.js run <target> --level 2 --focus "serverless rate limiting"`
+- [ ] Decision: user chose option 3 for c3d4e5f6 (serverless rate limiter) = focused level-2
 
-### Target Management Missing
-- [ ] No target registry
-- [ ] No Demo Sandbox generator (`POST /api/targets/scaffold` does not exist)
-- [ ] No GitHub Clone functionality
-- [ ] Dashboard has a raw path input instead of target selector
-- [ ] No `GET /api/targets` endpoint
+### Three Laws partial violation
+- [x] Fixed in mmx-v2 engine (implement+finalguard workspace cwd)
+- [ ] run-002 still wrote to aims-v2 source files (ran before fix compiled)
+- [ ] aims-v2 working tree dirty with run-002 patches applied to source
 
-### Dashboard UX Incomplete
-- [ ] No New Target flow (no modal, no Demo Sandbox / GitHub Clone options)
-- [ ] No artifact explorer (shows events only, not stage output content)
-- [ ] No run comparison
-- [ ] Target-first UX missing — dashboard is run-centric
+### aims-v2 patch status (pending human review)
+- APPLY (FinalGuard approved):
+  a1b2c3d4 N+1 session queries
+  b2c3d4e5 hardcoded HMAC key → randomBytes(32)
+  c5d6e7f8 updatedAt $onUpdate
+  c9d0e1f2 agent delete cascade
+  d0e1f2a3 dashboard unbounded SELECT → COUNT
+  f6a7b8c9 checkApiKey dead code regression test
+- FIX TESTS THEN APPLY:
+  a7b8c9d0 invalid date validation (tests use wrong channel format)
+  b4c5d6e7 bridge WebSocket auth (tests have blocking issues)
+  b8c9d0e1 chat CLI arg → stdin pipe (tests broken)
+- HUMAN DECISION NEEDED:
+  a3b4c5d6 parseInt NaN (check if Zod already handles this)
+  e5f6a7b8 channelId UUID validation (cross-contaminated)
+  f2a3b4c5 WSManager Redis (architecture sound, impl incomplete)
+- DO NOT APPLY:
+  e1f2a3b4 REJECTED — removes active requireAuth(), security regression
+  c3d4e5f6 REJECTED — incomplete DB rate limiter → re-run level 2 with --focus
 
-### Cost Telemetry Incorrect
-- [ ] `src/commands/run.ts:109` logs `cost: $${result.costUsd.toFixed(4)}` as if real API billing
-- [ ] `src/state/machine.ts` stores `total_cost_usd` as a real number in registry
-- [ ] Running via Agent SDK/Max subscription — no actual per-run USD charge
-- [ ] Should show model + token counts, label USD as ESTIMATE
+### Not built
+- [ ] GitHub Clone (POST /api/targets/clone)
+- [ ] Parallelization of Predict/Implement/FinalGuard outer loops
+- [ ] Artifact explorer in dashboard
+- [ ] Run history scoped to selected target in dashboard
+- [ ] Cost telemetry fix (still shows dollar amounts, should be ESTIMATE)
 
-## What Is Unproven
-- [ ] Real SDK run (not dryRun) — untested against actual target
-- [ ] HumanGate approval flow end-to-end
-- [ ] Dashboard with live run in progress
-
-## ⚠️ Loop Implementation Audit — BLOCKING (added 2026-03-12 by monitor)
-
-See `docs/LOOP-AUDIT.md` for full decisions. Summary:
-
-### IMPLEMENT cycle retry — CANONICAL, not wired
-- `cycle` is hardcoded to `1` in `src/stages/implement/index.ts`
-- `writeIFR()` exists but is only called on exit, never on retry
-- Required: loop with maxCycles=3, increment cycle on failure, retry
-- Proof required: run artifact showing `{fid8}.2.diff` or `{fid8}.2.json` on disk
-
-### FIND multi-agent convergence — CANONICAL, not wired
-- Single agent fires, raw/merged/convergence are written from one pass with identical data
-- Required: N parallel find agents (N=level), dedup pass → merged, vote pass → convergence
-- Proof required: `vote_count ≥ 2` in convergence files, raw ≠ merged ≠ convergence content
-
-### PREDICT stenography ghost path — remove it
-- `paths.predict.stenography()` in paths.ts, never written, not in contracts
-- Required: delete from paths.ts, add deferral comment in predict/index.ts
-
-### Contract drift — 4 mismatches
-- Undeclared on disk: `implement/facts`, `implement/tests`, `finalguard/notes`
-- Declared but never written: `cathedral/briefings`
-- Required: either add to ARTIFACT_CONTRACTS or delete from disk/code
+## Unproven
+- [ ] HumanGate end-to-end approve flow
+- [ ] Parallelized runs
+- [ ] --focus targeted runs

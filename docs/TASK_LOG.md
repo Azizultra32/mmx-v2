@@ -78,3 +78,25 @@ Proof:
   - current.json: latest_run_id = run-002
   - run-001/registry/run.json: intact, run_id = run-001
 Next: Artifact contract chain — prove cathedral→find artifact handoff end-to-end
+
+### Real SDK run proven (2026-03-13)
+Files: src/runner/sdk-runner.ts, src/stages/cathedral/index.ts, src/stages/distill/index.ts, src/commands/dashboard.ts, scripts/run-external.sh
+Proof: run-012 on ~/mmx-sandbox — exit 0, $14.46, 167 artifacts, real SQL injection patch
+Key fixes: cwd=targetPath, bypassPermissions, distill post-processing verdicts→approved packets, CLAUDECODE stripping
+Next: Run against real target
+
+### Run-001 on ~/aims-v2 (2026-03-13 04:37–06:00 UTC)
+Files: ~/aims-v2/.mmx/runs/run-001/
+Proof: exit 0, $18.89, 10 findings, 6 FinalGuard approved patches
+Patches committed to aims-v2 at 19:22 UTC
+
+### Three Laws fix — implement+finalguard workspace cwd (2026-03-13)
+Files: src/stages/implement/index.ts, src/stages/finalguard/index.ts, src/runner/sdk-runner.ts
+Proof: 8b3710d, 171 tests pass, 0 TS errors
+Fix: implement+finalguard now use stageWorkspace as cwd, explicit no-source-write in payload
+
+### Run-002 on ~/aims-v2 (2026-03-14 02:23–04:26 UTC)
+Files: ~/aims-v2/.mmx/runs/run-002/
+Proof: exit 0, $26.46, 15 findings, 6 approved / 6 needs-revision / 2 rejected
+NOTE: run-002 still wrote to source files (fix compiled after run started)
+Next: Build --focus flag, run level-2 targeted pass on serverless rate limiting
